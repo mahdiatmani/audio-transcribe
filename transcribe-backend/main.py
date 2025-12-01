@@ -1,7 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 import tempfile
 import os
 from datetime import datetime, timedelta
@@ -84,6 +85,21 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+def optional_verify_token(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    """Verify JWT token if provided, otherwise return None for guest access"""
+    if not authorization:
+        return None
+    
+    try:
+        if not authorization.startswith("Bearer "):
+            return None
+        
+        token = authorization.replace("Bearer ", "")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except (jwt.ExpiredSignatureError, jwt.JWTError):
+        return None
+
 def transcribe_with_huggingface_free(audio_bytes: bytes) -> str:
     """FREE Transcription using Hugging Face Inference API"""
     if not HUGGINGFACE_API_KEY:
@@ -142,7 +158,9 @@ async def signup(user: UserCreate):
         "user": {
             "email": user.email,
             "username": user.username,
-            "tier": "free"
+            "tier": "free",
+            "usage_minutes": 0,
+            "transcription_count": 0
         }
     }
 
@@ -170,8 +188,33 @@ async def login(credentials: UserLogin):
 @app.post("/api/transcribe")
 async def transcribe_audio(
     file: UploadFile = File(...),
-    user_data: dict = Depends(verify_token)
+    user_data: Optional[dict] = Depends(optional_verify_token)
 ):
+    """
+    Transcribe audio file - Works for both logged in and guest users
+    """
+    
+    # For guest users (no authentication)
+    if not user_data:
+        try:
+            audio_bytes = await file.read()
+            transcription_text = transcribe_with_huggingface_free(audio_bytes)
+            
+            return {
+                "success": True,
+                "transcription": transcription_text,
+                "duration": 2,
+                "filename": file.filename,
+                "usage": {
+                    "used": 0,
+                    "limit": 15,
+                    "remaining": 15
+                }
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # For authenticated users
     email = user_data.get("email")
     
     if email not in users_db:
@@ -293,7 +336,7 @@ if __name__ == "__main__":
     print("=" * 50)
     
     uvicorn.run(
-        app, 
+        "main:app",
         host=os.getenv("HOST", "0.0.0.0"), 
         port=int(os.getenv("PORT", 8000)), 
         reload=os.getenv("DEBUG", "True") == "True"
