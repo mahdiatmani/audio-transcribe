@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail } from 'lucide-react';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+
 export default function AudioTranscriptionSaaS() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -105,7 +108,7 @@ export default function AudioTranscriptionSaaS() {
         : { email, password };
 
       // Call backend API
-      const response = await fetch(`REACT_APP_API_URL/auth/${endpoint}`, {
+      const response = await fetch(`${API_URL}/auth/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +252,7 @@ export default function AudioTranscriptionSaaS() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('REACT_APP_API_URL/api/transcribe', {
+      const response = await fetch(`${API_URL}/api/transcribe`, {
         method: 'POST',
         headers: headers,
         body: formData,
@@ -276,7 +279,7 @@ export default function AudioTranscriptionSaaS() {
       }
     } catch (err) {
       console.error('Transcription error:', err);
-      setError('Connection error. Make sure backend is running at REACT_APP_API_URL');
+      setError(`Connection error. Make sure backend is running at ${API_URL}`);
     } finally {
       setIsProcessing(false);
     }
