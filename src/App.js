@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail } from 'lucide-react';
+import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail, Globe } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
+// Add storage polyfill
+if (!window.storage) {
+  window.storage = {
+    get: (key) => {
+      const value = localStorage.getItem(key);
+      return value ? Promise.resolve({ value }) : Promise.reject('Not found');
+    },
+    set: (key, value) => {
+      localStorage.setItem(key, value);
+      return Promise.resolve();
+    }
+  };
+}
 
 export default function AudioTranscriptionSaaS() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -24,6 +37,8 @@ export default function AudioTranscriptionSaaS() {
   const [userEmail, setUserEmail] = useState('');
   const [transcriptionHistory, setTranscriptionHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('transcribe');
+  const [selectedLanguage, setSelectedLanguage] = useState('auto');
+  const [detectedLanguage, setDetectedLanguage] = useState('');
   
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -36,6 +51,41 @@ export default function AudioTranscriptionSaaS() {
     pro: 1000,
     enterprise: 10000
   };
+
+  // Supported languages
+  const languages = {
+    'auto': '🌍 Auto-detect',
+    'en': '🇬🇧 English',
+    'es': '🇪🇸 Spanish',
+    'fr': '🇫🇷 French',
+    'de': '🇩🇪 German',
+    'it': '🇮🇹 Italian',
+    'pt': '🇵🇹 Portuguese',
+    'nl': '🇳🇱 Dutch',
+    'ru': '🇷🇺 Russian',
+    'zh': '🇨🇳 Chinese',
+    'ja': '🇯🇵 Japanese',
+    'ko': '🇰🇷 Korean',
+    'ar': '🇸🇦 Arabic',
+    'hi': '🇮🇳 Hindi',
+    'tr': '🇹🇷 Turkish',
+    'pl': '🇵🇱 Polish',
+    'uk': '🇺🇦 Ukrainian',
+    'vi': '🇻🇳 Vietnamese',
+    'th': '🇹🇭 Thai',
+    'id': '🇮🇩 Indonesian',
+    'cs': '🇨🇿 Czech',
+    'da': '🇩🇰 Danish',
+    'fi': '🇫🇮 Finnish',
+    'el': '🇬🇷 Greek',
+    'he': '🇮🇱 Hebrew',
+    'hu': '🇭🇺 Hungarian',
+    'no': '🇳🇴 Norwegian',
+    'ro': '🇷🇴 Romanian',
+    'sv': '🇸🇪 Swedish',
+    'ca': '🇪🇸 Catalan'
+  };
+
   useEffect(() => {
     loadUserData();
   }, [isLoggedIn]);
@@ -107,7 +157,6 @@ export default function AudioTranscriptionSaaS() {
         ? { username, email, password }
         : { email, password };
 
-      // Call backend API
       const response = await fetch(`${API_URL}/auth/${endpoint}`, {
         method: 'POST',
         headers: {
@@ -119,12 +168,11 @@ export default function AudioTranscriptionSaaS() {
       const data = await response.json();
 
       if (response.ok) {
-        // Save token and user data
         await window.storage.set(`auth:${email}`, JSON.stringify({
           email,
-          password, // Keep for local validation
+          password,
           username: data.user.username,
-          token: data.token, // Save JWT token from backend
+          token: data.token,
           createdAt: new Date().toISOString()
         }));
 
@@ -227,12 +275,13 @@ export default function AudioTranscriptionSaaS() {
     setIsProcessing(true);
     setError('');
     setTranscription('');
+    setDetectedLanguage('');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('language', selectedLanguage);
 
-      // Get auth token from storage (if logged in)
       let token = null;
       if (isLoggedIn) {
         try {
@@ -246,7 +295,6 @@ export default function AudioTranscriptionSaaS() {
         }
       }
 
-      // Call YOUR backend API instead of Anthropic
       const headers = {};
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -264,13 +312,15 @@ export default function AudioTranscriptionSaaS() {
         setTranscription(data.transcription);
         setTranscriptionCount(prev => prev + 1);
         setUsageMinutes(data.usage.used);
+        setDetectedLanguage(data.language_name || '');
         
         const newHistoryItem = {
           id: Date.now(),
           fileName: data.filename,
           transcription: data.transcription,
           date: new Date().toISOString(),
-          duration: data.duration
+          duration: data.duration,
+          language: data.language
         };
         
         setTranscriptionHistory(prev => [newHistoryItem, ...prev].slice(0, 10));
@@ -284,6 +334,7 @@ export default function AudioTranscriptionSaaS() {
       setIsProcessing(false);
     }
   };
+
   const downloadTranscription = () => {
     const element = document.createElement('a');
     const file = new Blob([transcription], { type: 'text/plain' });
@@ -303,6 +354,7 @@ export default function AudioTranscriptionSaaS() {
     setUserTier(tier);
     setError('');
   };
+
   if (showAuthModal) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center p-4">
@@ -411,6 +463,7 @@ export default function AudioTranscriptionSaaS() {
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -498,7 +551,9 @@ export default function AudioTranscriptionSaaS() {
           >
             Pricing
           </button>
-        </div><div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             {activeTab === 'transcribe' && (
               <>
@@ -506,6 +561,28 @@ export default function AudioTranscriptionSaaS() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Audio</h2>
                   
                   <div className="space-y-4">
+                    {/* Language Selector */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Globe className="w-4 h-4 inline mr-1" />
+                        Audio Language
+                      </label>
+                      <select
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                      >
+                        {Object.entries(languages).map(([code, name]) => (
+                          <option key={code} value={code}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select the language of your audio or use Auto-detect
+                      </p>
+                    </div>
+
                     <div
                       onClick={() => fileInputRef.current?.click()}
                       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 transition-colors"
@@ -580,7 +657,14 @@ export default function AudioTranscriptionSaaS() {
                 {transcription && (
                   <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
                     <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold text-gray-900">Transcription</h2>
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900">Transcription</h2>
+                        {detectedLanguage && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            Language: {detectedLanguage}
+                          </p>
+                        )}
+                      </div>
                       <button
                         onClick={downloadTranscription}
                         className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-700 font-medium"
@@ -595,7 +679,9 @@ export default function AudioTranscriptionSaaS() {
                   </div>
                 )}
               </>
-            )}{activeTab === 'history' && isLoggedIn && (
+            )}
+
+            {activeTab === 'history' && isLoggedIn && (
               <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Transcription History</h2>
                 {transcriptionHistory.length > 0 ? (
@@ -607,6 +693,7 @@ export default function AudioTranscriptionSaaS() {
                             <p className="font-medium text-gray-900">{item.fileName}</p>
                             <p className="text-xs text-gray-500 mt-1">
                               {new Date(item.date).toLocaleString()} • {item.duration} min
+                              {item.language && ` • ${languages[item.language] || item.language}`}
                             </p>
                           </div>
                           <button
@@ -631,7 +718,9 @@ export default function AudioTranscriptionSaaS() {
                   </div>
                 )}
               </div>
-            )}{activeTab === 'pricing' && (
+            )}
+
+            {activeTab === 'pricing' && (
               <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-6">Choose Your Plan</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -641,7 +730,7 @@ export default function AudioTranscriptionSaaS() {
                       name: 'Free', 
                       price: '$0', 
                       minutes: 15, 
-                      features: ['15 min/month', 'Basic quality', 'Email support', 'Standard processing'],
+                      features: ['15 min/month', 'Basic quality', 'Email support', '30+ languages'],
                       color: 'gray'
                     },
                     { 
@@ -649,7 +738,7 @@ export default function AudioTranscriptionSaaS() {
                       name: 'Starter', 
                       price: '$9', 
                       minutes: 300, 
-                      features: ['300 min/month', 'High quality', 'Priority support', 'API access', 'Fast processing'],
+                      features: ['300 min/month', 'High quality', 'Priority support', 'API access', '30+ languages'],
                       color: 'blue',
                       popular: true
                     },
@@ -658,7 +747,7 @@ export default function AudioTranscriptionSaaS() {
                       name: 'Pro', 
                       price: '$29', 
                       minutes: 1000, 
-                      features: ['1000 min/month', 'Ultra quality', '24/7 support', 'API access', 'Custom vocabulary', 'Batch processing'],
+                      features: ['1000 min/month', 'Ultra quality', '24/7 support', 'API access', '30+ languages', 'Batch processing'],
                       color: 'purple'
                     },
                     { 
@@ -666,7 +755,7 @@ export default function AudioTranscriptionSaaS() {
                       name: 'Enterprise', 
                       price: '$99', 
                       minutes: 10000, 
-                      features: ['10000 min/month', 'Ultra quality', 'Dedicated support', 'API access', 'Custom models', 'White-label option'],
+                      features: ['10000 min/month', 'Ultra quality', 'Dedicated support', 'API access', '30+ languages', 'White-label option'],
                       color: 'indigo'
                     }
                   ].map((plan) => (
@@ -728,13 +817,18 @@ export default function AudioTranscriptionSaaS() {
                 </div>
 
                 <div className="mt-8 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white">
-                  <h3 className="text-xl font-semibold mb-2">Need More?</h3>
+                  <h3 className="text-xl font-semibold mb-2">Multilingual Support</h3>
                   <p className="text-indigo-100 mb-4">
-                    For custom enterprise solutions, API integration, or volume discounts, contact our sales team.
+                    Transcribe audio in 30+ languages including English, Spanish, French, German, Chinese, Arabic, and more!
                   </p>
-                  <button className="bg-white text-indigo-600 px-6 py-2 rounded-lg font-medium hover:bg-indigo-50 transition-colors">
-                    Contact Sales
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">English</span>
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">Spanish</span>
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">French</span>
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">German</span>
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">Chinese</span>
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">+25 more</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -746,10 +840,10 @@ export default function AudioTranscriptionSaaS() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Pricing</h2>
                 <div className="space-y-3">
                   {[
-                    { tier: 'free', name: 'Free', price: '$0', minutes: 15, features: ['15 min/month', 'Basic quality', 'Email support'] },
-                    { tier: 'starter', name: 'Starter', price: '$9', minutes: 300, features: ['300 min/month', 'High quality', 'Priority support', 'API access'] },
-                    { tier: 'pro', name: 'Pro', price: '$29', minutes: 1000, features: ['1000 min/month', 'Ultra quality', '24/7 support', 'API access', 'Custom vocabulary'] },
-                    { tier: 'enterprise', name: 'Enterprise', price: '$99', minutes: 10000, features: ['10000 min/month', 'Ultra quality', 'Dedicated support', 'API access', 'Custom models'] }
+                    { tier: 'free', name: 'Free', price: '$0', minutes: 15, features: ['15 min/month', 'Basic quality', '30+ languages'] },
+                    { tier: 'starter', name: 'Starter', price: '$9', minutes: 300, features: ['300 min/month', 'High quality', 'API access'] },
+                    { tier: 'pro', name: 'Pro', price: '$29', minutes: 1000, features: ['1000 min/month', 'Ultra quality', 'Batch processing'] },
+                    { tier: 'enterprise', name: 'Enterprise', price: '$99', minutes: 10000, features: ['10000 min/month', 'Custom models', 'White-label'] }
                   ].map((plan) => (
                     <div
                       key={plan.tier}
@@ -781,13 +875,11 @@ export default function AudioTranscriptionSaaS() {
               </div>
 
               <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl shadow-md p-6 text-white">
-                <h3 className="font-semibold text-lg mb-2">Need API Access?</h3>
+                <Globe className="w-8 h-8 mb-3" />
+                <h3 className="font-semibold text-lg mb-2">30+ Languages Supported</h3>
                 <p className="text-sm text-indigo-100 mb-4">
-                  Integrate our transcription API into your apps. Starting at $0.10/minute.
+                  Auto-detect or manually select from English, Spanish, French, German, Chinese, Arabic, and many more!
                 </p>
-                <button className="w-full bg-white text-indigo-600 py-2 px-4 rounded-lg font-medium hover:bg-indigo-50 transition-colors">
-                  View API Docs
-                </button>
               </div>
             </div>
           )}
