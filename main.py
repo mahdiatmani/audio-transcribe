@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -50,6 +50,40 @@ TIER_LIMITS = {
     "enterprise": int(os.getenv("TIER_ENTERPRISE_LIMIT", 10000))
 }
 
+# Supported languages
+SUPPORTED_LANGUAGES = {
+    "auto": "Auto-detect",
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "ru": "Russian",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "tr": "Turkish",
+    "pl": "Polish",
+    "uk": "Ukrainian",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "id": "Indonesian",
+    "cs": "Czech",
+    "da": "Danish",
+    "fi": "Finnish",
+    "el": "Greek",
+    "he": "Hebrew",
+    "hu": "Hungarian",
+    "no": "Norwegian",
+    "ro": "Romanian",
+    "sv": "Swedish",
+    "ca": "Catalan"
+}
+
 # ============= Models =============
 class UserCreate(BaseModel):
     username: str
@@ -99,10 +133,15 @@ def optional_verify_token(authorization: Optional[str] = Header(None)) -> Option
     except (jwt.ExpiredSignatureError, jwt.JWTError):
         return None
 
-def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str) -> str:
+def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> str:
     """
     Transcribe using self-hosted Whisper API on Hugging Face Spaces
     100% FREE - No API keys needed!
+    
+    Parameters:
+    - audio_bytes: The audio file content
+    - filename: Original filename
+    - language: Language code (e.g., 'en', 'es', 'fr', 'auto')
     """
     try:
         # Prepare file for upload
@@ -110,10 +149,16 @@ def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str) -> st
             'file': (filename, audio_bytes, 'audio/mpeg')
         }
         
+        # Add language parameter
+        data = {
+            'language': language
+        }
+        
         # Call the self-hosted Whisper API
         response = requests.post(
             WHISPER_API_URL,
             files=files,
+            data=data,
             timeout=120  # 2 minutes timeout for longer audio files
         )
         
@@ -146,8 +191,16 @@ async def root():
             "whisper_configured": bool(WHISPER_API_URL),
             "whisper_endpoint": WHISPER_API_URL if WHISPER_API_URL else "Not configured",
             "cors_origins": CORS_ORIGINS,
-            "tier_limits": TIER_LIMITS
+            "tier_limits": TIER_LIMITS,
+            "supported_languages": list(SUPPORTED_LANGUAGES.keys())
         }
+    }
+
+@app.get("/api/languages")
+async def get_supported_languages():
+    """Get list of supported languages"""
+    return {
+        "languages": SUPPORTED_LANGUAGES
     }
 
 @app.get("/api/whisper/health")
@@ -229,24 +282,35 @@ async def login(credentials: UserLogin):
 @app.post("/api/transcribe")
 async def transcribe_audio(
     file: UploadFile = File(...),
+    language: str = Form("auto"),
     user_data: Optional[dict] = Depends(optional_verify_token)
 ):
     """
     Transcribe audio file - Works for both logged in and guest users
     Uses self-hosted Whisper API (100% FREE!)
+    
+    Parameters:
+    - file: Audio file to transcribe
+    - language: Language code (default: 'auto' for auto-detection)
     """
+    
+    # Validate language
+    if language not in SUPPORTED_LANGUAGES:
+        language = "auto"
     
     # For guest users (no authentication)
     if not user_data:
         try:
             audio_bytes = await file.read()
-            transcription_text = transcribe_with_self_hosted_whisper(audio_bytes, file.filename)
+            transcription_text = transcribe_with_self_hosted_whisper(audio_bytes, file.filename, language)
             
             return {
                 "success": True,
                 "transcription": transcription_text,
                 "duration": 2,
                 "filename": file.filename,
+                "language": language,
+                "language_name": SUPPORTED_LANGUAGES.get(language, "Auto-detect"),
                 "usage": {
                     "used": 0,
                     "limit": 15,
@@ -275,7 +339,7 @@ async def transcribe_audio(
     
     try:
         audio_bytes = await file.read()
-        transcription_text = transcribe_with_self_hosted_whisper(audio_bytes, file.filename)
+        transcription_text = transcribe_with_self_hosted_whisper(audio_bytes, file.filename, language)
         
         user["usage_minutes"] += estimated_duration
         user["transcription_count"] += 1
@@ -286,6 +350,7 @@ async def transcribe_audio(
             "filename": file.filename,
             "transcription": transcription_text,
             "duration": estimated_duration,
+            "language": language,
             "timestamp": datetime.utcnow().isoformat()
         }
         
@@ -294,6 +359,8 @@ async def transcribe_audio(
             "transcription": transcription_text,
             "duration": estimated_duration,
             "filename": file.filename,
+            "language": language,
+            "language_name": SUPPORTED_LANGUAGES.get(language, "Auto-detect"),
             "usage": {
                 "used": user["usage_minutes"],
                 "limit": tier_limit,
@@ -336,6 +403,7 @@ async def get_transcription_history(
             "filename": t["filename"],
             "transcription": t["transcription"],
             "duration": t["duration"],
+            "language": t.get("language", "auto"),
             "timestamp": t["timestamp"]
         }
         for tid, t in transcriptions_db.items()
@@ -375,6 +443,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"📝 API Docs: http://localhost:{os.getenv('PORT', 8000)}/docs")
     print(f"🎙️ Whisper API: {WHISPER_API_URL if WHISPER_API_URL else '❌ Not configured'}")
+    print(f"🌍 Supported Languages: {len(SUPPORTED_LANGUAGES)}")
     print("💰 Cost: $0.00")
     print("=" * 60)
     
