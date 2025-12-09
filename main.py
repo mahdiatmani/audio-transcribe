@@ -9,18 +9,24 @@ import hashlib
 import jwt
 import requests
 from dotenv import load_dotenv
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import psycopg2.pool
 
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="TranscribeAI API", version="1.0.0")
+app = FastAPI(title="TranscribeAI API", version="2.0.0")
 
 # Configuration from .env
 SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-this")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_DAYS = int(os.getenv("JWT_EXPIRATION_DAYS", 7))
 
-# Self-hosted Whisper API URL (your Hugging Face Space URL)
+# Database Configuration (Supabase PostgreSQL)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Self-hosted Whisper API URL
 WHISPER_API_URL = os.getenv("WHISPER_API_URL", "https://your-space-name.hf.space/transcribe")
 
 # Parse CORS origins from .env
@@ -38,9 +44,35 @@ app.add_middleware(
 # Security
 security = HTTPBearer()
 
-# In-memory database
-users_db = {}
-transcriptions_db = {}
+# Database connection pool
+db_pool = None
+
+# Initialize database connection pool
+def init_db_pool():
+    global db_pool
+    if DATABASE_URL:
+        try:
+            db_pool = psycopg2.pool.SimpleConnectionPool(
+                1, 20,  # min and max connections
+                DATABASE_URL
+            )
+            print("✅ Database pool created successfully")
+        except Exception as e:
+            print(f"❌ Database pool creation failed: {e}")
+            db_pool = None
+    else:
+        print("⚠️  No DATABASE_URL configured - using in-memory storage")
+
+# Get database connection
+def get_db():
+    if db_pool:
+        conn = db_pool.getconn()
+        try:
+            yield conn
+        finally:
+            db_pool.putconn(conn)
+    else:
+        yield None
 
 # Pricing tiers from .env
 TIER_LIMITS = {
@@ -71,17 +103,7 @@ SUPPORTED_LANGUAGES = {
     "uk": "Ukrainian",
     "vi": "Vietnamese",
     "th": "Thai",
-    "id": "Indonesian",
-    "cs": "Czech",
-    "da": "Danish",
-    "fi": "Finnish",
-    "el": "Greek",
-    "he": "Hebrew",
-    "hu": "Hungarian",
-    "no": "Norwegian",
-    "ro": "Romanian",
-    "sv": "Swedish",
-    "ca": "Catalan"
+    "id": "Indonesian"
 }
 
 # ============= Models =============
@@ -134,33 +156,12 @@ def optional_verify_token(authorization: Optional[str] = Header(None)) -> Option
         return None
 
 def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> str:
-    """
-    Transcribe using self-hosted Whisper API on Hugging Face Spaces
-    100% FREE - No API keys needed!
-    
-    Parameters:
-    - audio_bytes: The audio file content
-    - filename: Original filename
-    - language: Language code (e.g., 'en', 'es', 'fr', 'auto')
-    """
+    """Transcribe using self-hosted Whisper API"""
     try:
-        # Prepare file for upload
-        files = {
-            'file': (filename, audio_bytes, 'audio/mpeg')
-        }
+        files = {'file': (filename, audio_bytes, 'audio/mpeg')}
+        data = {'language': language}
         
-        # Add language parameter
-        data = {
-            'language': language
-        }
-        
-        # Call the self-hosted Whisper API
-        response = requests.post(
-            WHISPER_API_URL,
-            files=files,
-            data=data,
-            timeout=120  # 2 minutes timeout for longer audio files
-        )
+        response = requests.post(WHISPER_API_URL, files=files, data=data, timeout=120)
         
         if response.status_code == 200:
             result = response.json()
@@ -179,6 +180,102 @@ def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str, langu
         print(f"Unexpected error: {str(e)}")
         return "⚠️ Transcription failed. Please try again."
 
+# ============= Database Functions =============
+
+def create_user_in_db(conn, username: str, email: str, password_hash: str):
+    """Create a new user in the database"""
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                INSERT INTO users (username, email, password_hash, tier, usage_minutes, transcription_count)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, username, email, tier, usage_minutes, transcription_count, created_at
+            """, (username, email, password_hash, 'free', 0, 0))
+            
+            user = cur.fetchone()
+            conn.commit()
+            return dict(user)
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+def get_user_by_email(conn, email: str):
+    """Get user by email from database"""
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, username, email, password_hash, tier, usage_minutes, transcription_count, created_at
+                FROM users WHERE email = %s
+            """, (email,))
+            
+            user = cur.fetchone()
+            return dict(user) if user else None
+    except Exception as e:
+        print(f"Database error: {e}")
+        return None
+
+def update_user_usage(conn, email: str, usage_minutes: int, transcription_count: int):
+    """Update user usage statistics"""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users 
+                SET usage_minutes = %s, transcription_count = %s, updated_at = NOW()
+                WHERE email = %s
+            """, (usage_minutes, transcription_count, email))
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Failed to update usage: {e}")
+
+def save_transcription(conn, email: str, filename: str, transcription: str, duration: int, language: str):
+    """Save transcription to database"""
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                INSERT INTO transcriptions (user_email, filename, transcription, duration, language)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id, created_at
+            """, (email, filename, transcription, duration, language))
+            
+            result = cur.fetchone()
+            conn.commit()
+            return dict(result)
+    except Exception as e:
+        conn.rollback()
+        print(f"Failed to save transcription: {e}")
+        return None
+
+def get_user_transcriptions(conn, email: str, limit: int = 10):
+    """Get user's transcription history"""
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, filename, transcription, duration, language, created_at
+                FROM transcriptions
+                WHERE user_email = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+            """, (email, limit))
+            
+            return [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        print(f"Failed to get transcriptions: {e}")
+        return []
+
+# ============= Startup Event =============
+@app.on_event("startup")
+async def startup_event():
+    init_db_pool()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if db_pool:
+        db_pool.closeall()
+
 # ============= Routes =============
 
 @app.get("/")
@@ -186,7 +283,8 @@ async def root():
     return {
         "status": "online",
         "message": "TranscribeAI API - 100% FREE!",
-        "version": "1.0.0",
+        "version": "2.0.0",
+        "database": "connected" if db_pool else "in-memory",
         "config": {
             "whisper_configured": bool(WHISPER_API_URL),
             "whisper_endpoint": WHISPER_API_URL if WHISPER_API_URL else "Not configured",
@@ -199,9 +297,7 @@ async def root():
 @app.get("/api/languages")
 async def get_supported_languages():
     """Get list of supported languages"""
-    return {
-        "languages": SUPPORTED_LANGUAGES
-    }
+    return {"languages": SUPPORTED_LANGUAGES}
 
 @app.get("/api/whisper/health")
 async def check_whisper_health():
@@ -211,60 +307,54 @@ async def check_whisper_health():
         response = requests.get(health_url, timeout=5)
         
         if response.status_code == 200:
-            return {
-                "status": "healthy",
-                "whisper_api": "online",
-                "endpoint": WHISPER_API_URL
-            }
+            return {"status": "healthy", "whisper_api": "online", "endpoint": WHISPER_API_URL}
         else:
-            return {
-                "status": "unhealthy",
-                "whisper_api": "offline",
-                "endpoint": WHISPER_API_URL
-            }
+            return {"status": "unhealthy", "whisper_api": "offline", "endpoint": WHISPER_API_URL}
     except:
-        return {
-            "status": "unhealthy",
-            "whisper_api": "unreachable",
-            "endpoint": WHISPER_API_URL
-        }
+        return {"status": "unhealthy", "whisper_api": "unreachable", "endpoint": WHISPER_API_URL}
 
 @app.post("/auth/signup")
-async def signup(user: UserCreate):
-    if user.email in users_db:
-        raise HTTPException(status_code=400, detail="Email already registered")
+async def signup(user: UserCreate, conn = Depends(get_db)):
+    """Create a new user account"""
     
-    users_db[user.email] = {
-        "username": user.username,
-        "email": user.email,
-        "password": hash_password(user.password),
-        "tier": "free",
-        "usage_minutes": 0,
-        "transcription_count": 0,
-        "created_at": datetime.utcnow().isoformat()
-    }
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
     
+    # Hash password
+    password_hash = hash_password(user.password)
+    
+    # Create user in database
+    db_user = create_user_in_db(conn, user.username, user.email, password_hash)
+    
+    # Create JWT token
     token = create_access_token({"email": user.email})
     
     return {
         "message": "User created successfully",
         "token": token,
         "user": {
-            "email": user.email,
-            "username": user.username,
-            "tier": "free",
-            "usage_minutes": 0,
-            "transcription_count": 0
+            "email": db_user["email"],
+            "username": db_user["username"],
+            "tier": db_user["tier"],
+            "usage_minutes": db_user["usage_minutes"],
+            "transcription_count": db_user["transcription_count"]
         }
     }
 
 @app.post("/auth/login")
-async def login(credentials: UserLogin):
-    user = users_db.get(credentials.email)
+async def login(credentials: UserLogin, conn = Depends(get_db)):
+    """Login to existing account"""
     
-    if not user or not verify_password(credentials.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
     
+    # Get user from database
+    user = get_user_by_email(conn, credentials.email)
+    
+    if not user or not verify_password(credentials.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Create JWT token
     token = create_access_token({"email": credentials.email})
     
     return {
@@ -283,16 +373,10 @@ async def login(credentials: UserLogin):
 async def transcribe_audio(
     file: UploadFile = File(...),
     language: str = Form("auto"),
-    user_data: Optional[dict] = Depends(optional_verify_token)
+    user_data: Optional[dict] = Depends(optional_verify_token),
+    conn = Depends(get_db)
 ):
-    """
-    Transcribe audio file - Works for both logged in and guest users
-    Uses self-hosted Whisper API (100% FREE!)
-    
-    Parameters:
-    - file: Audio file to transcribe
-    - language: Language code (default: 'auto' for auto-detection)
-    """
+    """Transcribe audio file - Works for both logged in and guest users"""
     
     # Validate language
     if language not in SUPPORTED_LANGUAGES:
@@ -311,23 +395,22 @@ async def transcribe_audio(
                 "filename": file.filename,
                 "language": language,
                 "language_name": SUPPORTED_LANGUAGES.get(language, "Auto-detect"),
-                "usage": {
-                    "used": 0,
-                    "limit": 15,
-                    "remaining": 15
-                },
+                "usage": {"used": 0, "limit": 15, "remaining": 15},
                 "note": "Guest mode - Create an account to save your transcriptions!"
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
     # For authenticated users
-    email = user_data.get("email")
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
     
-    if email not in users_db:
+    email = user_data.get("email")
+    user = get_user_by_email(conn, email)
+    
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user = users_db[email]
     tier_limit = TIER_LIMITS[user["tier"]]
     estimated_duration = 2
     
@@ -341,18 +424,14 @@ async def transcribe_audio(
         audio_bytes = await file.read()
         transcription_text = transcribe_with_self_hosted_whisper(audio_bytes, file.filename, language)
         
-        user["usage_minutes"] += estimated_duration
-        user["transcription_count"] += 1
+        # Update usage
+        new_usage_minutes = user["usage_minutes"] + estimated_duration
+        new_transcription_count = user["transcription_count"] + 1
         
-        transcription_id = f"{email}_{datetime.utcnow().timestamp()}"
-        transcriptions_db[transcription_id] = {
-            "email": email,
-            "filename": file.filename,
-            "transcription": transcription_text,
-            "duration": estimated_duration,
-            "language": language,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        update_user_usage(conn, email, new_usage_minutes, new_transcription_count)
+        
+        # Save transcription to database
+        save_transcription(conn, email, file.filename, transcription_text, estimated_duration, language)
         
         return {
             "success": True,
@@ -362,22 +441,27 @@ async def transcribe_audio(
             "language": language,
             "language_name": SUPPORTED_LANGUAGES.get(language, "Auto-detect"),
             "usage": {
-                "used": user["usage_minutes"],
+                "used": new_usage_minutes,
                 "limit": tier_limit,
-                "remaining": tier_limit - user["usage_minutes"]
+                "remaining": tier_limit - new_usage_minutes
             }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/user/stats")
-async def get_user_stats(user_data: dict = Depends(verify_token)):
-    email = user_data.get("email")
+async def get_user_stats(user_data: dict = Depends(verify_token), conn = Depends(get_db)):
+    """Get user statistics"""
     
-    if email not in users_db:
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
+    email = user_data.get("email")
+    user = get_user_by_email(conn, email)
+    
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    user = users_db[email]
     tier_limit = TIER_LIMITS[user["tier"]]
     
     return {
@@ -393,56 +477,64 @@ async def get_user_stats(user_data: dict = Depends(verify_token)):
 @app.get("/api/transcriptions/history")
 async def get_transcription_history(
     limit: int = 10,
-    user_data: dict = Depends(verify_token)
+    user_data: dict = Depends(verify_token),
+    conn = Depends(get_db)
 ):
+    """Get user's transcription history"""
+    
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    
     email = user_data.get("email")
-    
-    user_transcriptions = [
-        {
-            "id": tid,
-            "filename": t["filename"],
-            "transcription": t["transcription"],
-            "duration": t["duration"],
-            "language": t.get("language", "auto"),
-            "timestamp": t["timestamp"]
-        }
-        for tid, t in transcriptions_db.items()
-        if t["email"] == email
-    ]
-    
-    user_transcriptions.sort(key=lambda x: x["timestamp"], reverse=True)
+    transcriptions = get_user_transcriptions(conn, email, limit)
     
     return {
-        "history": user_transcriptions[:limit],
-        "total": len(user_transcriptions)
+        "history": transcriptions,
+        "total": len(transcriptions)
     }
 
 @app.post("/api/user/upgrade")
-async def upgrade_tier(tier: str, user_data: dict = Depends(verify_token)):
-    email = user_data.get("email")
+async def upgrade_tier(
+    tier: str,
+    user_data: dict = Depends(verify_token),
+    conn = Depends(get_db)
+):
+    """Upgrade user tier"""
     
-    if email not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
+    if not conn:
+        raise HTTPException(status_code=503, detail="Database not configured")
     
     if tier not in TIER_LIMITS:
         raise HTTPException(status_code=400, detail="Invalid tier")
     
-    users_db[email]["tier"] = tier
+    email = user_data.get("email")
     
-    return {
-        "message": f"Upgraded to {tier}",
-        "tier": tier,
-        "new_limit": TIER_LIMITS[tier]
-    }
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users SET tier = %s, updated_at = NOW()
+                WHERE email = %s
+            """, (tier, email))
+            conn.commit()
+        
+        return {
+            "message": f"Upgraded to {tier}",
+            "tier": tier,
+            "new_limit": TIER_LIMITS[tier]
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
     
     print("=" * 60)
-    print("🚀 TranscribeAI Backend - 100% FREE & SELF-HOSTED")
+    print("🚀 TranscribeAI Backend v2.0 - WITH DATABASE!")
     print("=" * 60)
     print(f"📝 API Docs: http://localhost:{os.getenv('PORT', 8000)}/docs")
-    print(f"🎙️ Whisper API: {WHISPER_API_URL if WHISPER_API_URL else '❌ Not configured'}")
+    print(f"🎙️ Whisper API: {WHISPER_API_URL}")
+    print(f"🗄️  Database: {'PostgreSQL (Supabase)' if DATABASE_URL else 'In-Memory'}")
     print(f"🌍 Supported Languages: {len(SUPPORTED_LANGUAGES)}")
     print("💰 Cost: $0.00")
     print("=" * 60)
