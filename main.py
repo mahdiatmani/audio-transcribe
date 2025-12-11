@@ -28,13 +28,12 @@ WHISPER_API_URL = os.getenv("WHISPER_API_URL", "https://your-space-name.hf.space
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
-DATABASE_URL = os.getenv("DATABASE_URL")  # Supabase / Postgres connection string
-
-# CORS
+# For now, allow all origins (easier during dev)
+# In production, restrict this to your real frontend URLs.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],         # allow any origin
+    allow_credentials=False,     # must be False when using "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -579,3 +578,4 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT", 8000)),
         reload=os.getenv("DEBUG", "True") == "True",
     )
+
