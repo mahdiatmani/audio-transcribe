@@ -331,17 +331,20 @@ async def check_whisper_health():
 
 @app.post("/auth/signup")
 async def signup(user: UserCreate):
-    # Check if email already exists
-    if db_check_email_exists(user.email):
+    if user.email in users_db:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hash password and create user
-    password_hash = hash_password(user.password)
+    users_db[user.email] = {
+        "username": user.username,
+        "email": user.email,
+        # store a hash and name it like the DB column
+        "password_hash": hash_password(user.password),
+        "tier": "free",
+        "usage_minutes": 0,
+        "transcription_count": 0,
+        "created_at": datetime.utcnow().isoformat()
+    }
     
-    if not db_create_user(user.email, user.username, password_hash):
-        raise HTTPException(status_code=500, detail="Failed to create user")
-    
-    # Generate token
     token = create_access_token({"email": user.email})
     
     return {
@@ -356,31 +359,26 @@ async def signup(user: UserCreate):
         }
     }
 
+
 @app.post("/auth/login")
 async def login(credentials: UserLogin):
-    # Get user from database
-    user = db_get_user(credentials.email)
+    user = users_db.get(credentials.email)
     
-    # Check if user exists
-    if user is None:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    # use password_hash to match what we stored in signup
+    if not user or not verify_password(credentials.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Verify password
-    if not verify_password(credentials.password, user.get("password", "")):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    
-    # Generate token
     token = create_access_token({"email": credentials.email})
     
     return {
         "message": "Login successful",
         "token": token,
         "user": {
-            "email": user.get("email", ""),
-            "username": user.get("username", ""),
-            "tier": user.get("tier", "free"),
-            "usage_minutes": user.get("usage_minutes", 0),
-            "transcription_count": user.get("transcription_count", 0)
+            "email": user["email"],
+            "username": user["username"],
+            "tier": user["tier"],
+            "usage_minutes": user["usage_minutes"],
+            "transcription_count": user["transcription_count"]
         }
     }
 
@@ -504,3 +502,4 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT", 8000)), 
         reload=os.getenv("DEBUG", "True") == "True"
     )
+
