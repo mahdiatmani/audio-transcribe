@@ -89,6 +89,7 @@ export default function AudioTranscriptionSaaS() {
   const [currentPage, setCurrentPage] = useState('home');
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -170,6 +171,8 @@ export default function AudioTranscriptionSaaS() {
       return;
     }
 
+    setIsAuthLoading(true);
+
     try {
       const endpoint = authMode === 'login' ? 'login' : 'signup';
       const payload = authMode === 'signup' 
@@ -217,6 +220,8 @@ export default function AudioTranscriptionSaaS() {
     } catch (err) {
       console.error('Auth error:', err);
       setAuthError('Connection error. Please check your internet connection and try again.');
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -376,125 +381,156 @@ export default function AudioTranscriptionSaaS() {
   // UI COMPONENTS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Auth Modal Component
-  const AuthModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
-      <div className="relative w-full max-w-md animate-fadeIn">
-        {/* Background decoration */}
-        <div className="absolute -top-20 -left-20 w-40 h-40 bg-emerald-400 rounded-full opacity-20 blur-3xl"></div>
-        <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-teal-400 rounded-full opacity-20 blur-3xl"></div>
-        
-        <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-8 py-10 text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
-              <Lock className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">
-              {authMode === 'login' ? 'Welcome Back' : 'Get Started Free'}
-            </h2>
-            <p className="text-slate-400 mt-2 text-sm">
-              {authMode === 'login' 
-                ? 'Sign in to access your dashboard' 
-                : 'Create your account in seconds'}
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="px-8 py-8">
-            <div className="space-y-4">
-              {authMode === 'signup' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400"
-                      placeholder="John Smith"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400"
-                    placeholder="you@company.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              {authError && (
-                <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  <p className="text-sm text-red-700">{authError}</p>
-                </div>
-              )}
-
-              <button
-                onClick={handleAuth}
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40"
-              >
-                {authMode === 'login' ? 'Sign In' : 'Create Account'}
-              </button>
-            </div>
-
-            {/* Toggle auth mode */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => {
-                  setAuthMode(authMode === 'login' ? 'signup' : 'login');
-                  setAuthError('');
-                }}
-                className="text-slate-600 hover:text-emerald-600 font-medium transition-colors"
-              >
-                {authMode === 'login' 
-                  ? "Don't have an account? Sign up free" 
-                  : 'Already have an account? Sign in'}
-              </button>
-            </div>
-
-            {/* Continue without login */}
+  // Auth Modal - Rendered inline to prevent re-mount focus issues
+  const renderAuthModal = () => {
+    if (!showAuthModal) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+        <div className="relative w-full max-w-md animate-fadeIn">
+          {/* Background decoration */}
+          <div className="absolute -top-20 -left-20 w-40 h-40 bg-emerald-400 rounded-full opacity-20 blur-3xl"></div>
+          <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-teal-400 rounded-full opacity-20 blur-3xl"></div>
+          
+          <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Close button */}
             <button
               onClick={() => {
                 setShowAuthModal(false);
                 setAuthError('');
+                setIsAuthLoading(false);
               }}
-              className="mt-4 w-full text-slate-500 hover:text-slate-700 font-medium text-sm py-2"
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
             >
-              Continue as guest ({FREE_LIMIT - transcriptionCount} free transcriptions)
+              <X className="w-5 h-5 text-white" />
             </button>
+            
+            {/* Header */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-8 py-10 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+                <Lock className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">
+                {authMode === 'login' ? 'Welcome Back' : 'Get Started Free'}
+              </h2>
+              <p className="text-slate-400 mt-2 text-sm">
+                {authMode === 'login' 
+                  ? 'Sign in to access your dashboard' 
+                  : 'Create your account in seconds'}
+              </p>
+            </div>
+
+            {/* Form */}
+            <div className="px-8 py-8">
+              <form onSubmit={(e) => { e.preventDefault(); handleAuth(); }} className="space-y-4">
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        disabled={isAuthLoading}
+                        autoComplete="name"
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400 disabled:opacity-50"
+                        placeholder="John Smith"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isAuthLoading}
+                      autoComplete="email"
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400 disabled:opacity-50"
+                      placeholder="you@company.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={isAuthLoading}
+                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all text-slate-800 placeholder-slate-400 disabled:opacity-50"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                {authError && (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-700">{authError}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isAuthLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {authMode === 'login' ? 'Signing in...' : 'Creating account...'}
+                    </>
+                  ) : (
+                    authMode === 'login' ? 'Sign In' : 'Create Account'
+                  )}
+                </button>
+              </form>
+
+              {/* Toggle auth mode */}
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode(authMode === 'login' ? 'signup' : 'login');
+                    setAuthError('');
+                  }}
+                  disabled={isAuthLoading}
+                  className="text-slate-600 hover:text-emerald-600 font-medium transition-colors disabled:opacity-50"
+                >
+                  {authMode === 'login' 
+                    ? "Don't have an account? Sign up free" 
+                    : 'Already have an account? Sign in'}
+                </button>
+              </div>
+
+              {/* Continue without login */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setAuthError('');
+                }}
+                disabled={isAuthLoading}
+                className="mt-4 w-full text-slate-500 hover:text-slate-700 font-medium text-sm py-2 disabled:opacity-50"
+              >
+                Continue as guest ({FREE_LIMIT - transcriptionCount} free transcriptions)
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Navigation Component
   const Navigation = () => (
@@ -1799,7 +1835,7 @@ export default function AudioTranscriptionSaaS() {
         }
       `}</style>
       
-      {showAuthModal && <AuthModal />}
+      {renderAuthModal()}
       <Navigation />
       
       {isLoggedIn ? (
