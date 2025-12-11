@@ -1,5 +1,59 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail, Shield, Clock, Globe, Headphones, Play, Star, ChevronRight, Menu, X, Waveform, Volume2, Settings, BarChart3, CreditCard, HelpCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail, Shield, Clock, Globe, Headphones, Play, Star, ChevronRight, Menu, X, Settings, BarChart3, CreditCard, HelpCircle, ArrowRight, Sparkles } from 'lucide-react';
+
+// Custom Voxify Logo Component
+const VoxifyLogo = ({ size = 40 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 48 48" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#10b981" />
+        <stop offset="100%" stopColor="#0d9488" />
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="48" height="48" rx="12" fill="url(#logoGradient)" />
+    <g fill="white">
+      <rect x="8" y="20" width="3.5" height="8" rx="1.75" opacity="0.7" />
+      <rect x="13.5" y="16" width="3.5" height="16" rx="1.75" opacity="0.85" />
+      <rect x="19" y="12" width="3.5" height="24" rx="1.75" />
+      <rect x="25.5" y="12" width="3.5" height="24" rx="1.75" />
+      <rect x="31" y="16" width="3.5" height="16" rx="1.75" opacity="0.85" />
+      <rect x="36.5" y="20" width="3.5" height="8" rx="1.75" opacity="0.7" />
+    </g>
+  </svg>
+);
+
+// Small version for footer/compact spaces
+const VoxifyLogoSmall = ({ size = 32 }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 48 48" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <linearGradient id="logoGradientSmall" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#10b981" />
+        <stop offset="100%" stopColor="#0d9488" />
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="48" height="48" rx="10" fill="url(#logoGradientSmall)" />
+    <g fill="white">
+      <rect x="8" y="20" width="3.5" height="8" rx="1.75" opacity="0.7" />
+      <rect x="13.5" y="16" width="3.5" height="16" rx="1.75" opacity="0.85" />
+      <rect x="19" y="12" width="3.5" height="24" rx="1.75" />
+      <rect x="25.5" y="12" width="3.5" height="24" rx="1.75" />
+      <rect x="31" y="16" width="3.5" height="16" rx="1.75" opacity="0.85" />
+      <rect x="36.5" y="20" width="3.5" height="8" rx="1.75" opacity="0.7" />
+    </g>
+  </svg>
+);
 
 export default function AudioTranscriptionSaaS() {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -442,9 +496,7 @@ export default function AudioTranscriptionSaaS() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentPage(isLoggedIn ? 'dashboard' : 'home')}>
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Volume2 className="w-5 h-5 text-white" />
-            </div>
+            <VoxifyLogo size={40} />
             <span className="text-xl font-bold text-slate-900">Voxify</span>
           </div>
 
@@ -720,9 +772,7 @@ export default function AudioTranscriptionSaaS() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                <Volume2 className="w-4 h-4 text-white" />
-              </div>
+              <VoxifyLogoSmall size={32} />
               <span className="font-bold text-slate-900">Voxify</span>
             </div>
             <p className="text-sm text-slate-500">
