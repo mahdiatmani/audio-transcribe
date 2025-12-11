@@ -1,12 +1,4 @@
-from fastapi import (
-    FastAPI,
-    File,
-    UploadFile,
-    HTTPException,
-    Depends,
-    Header,
-    Request,
-)
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
@@ -19,7 +11,6 @@ import requests
 from dotenv import load_dotenv
 from psycopg2.pool import SimpleConnectionPool
 from contextlib import contextmanager
-import stripe
 
 # -------------------------------------------------
 # Environment & basic config
@@ -39,6 +30,7 @@ WHISPER_API_URL = os.getenv(
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
+# 🔴 THIS IS THE ONE THAT FIXES YOUR NameError
 DATABASE_URL = os.getenv("DATABASE_URL")  # Supabase / Postgres connection string
 
 # CORS
@@ -59,21 +51,6 @@ TIER_LIMITS: Dict[str, int] = {
     "pro": int(os.getenv("TIER_PRO_LIMIT", 1000)),
     "enterprise": int(os.getenv("TIER_ENTERPRISE_LIMIT", 10000)),
 }
-
-# -------------------------------------------------
-# Stripe config
-# -------------------------------------------------
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-
-STRIPE_PRICE_IDS = {
-    "starter": os.getenv("STRIPE_PRICE_STARTER"),
-    "pro": os.getenv("STRIPE_PRICE_PRO"),
-    "enterprise": os.getenv("STRIPE_PRICE_ENTERPRISE"),
-}
-
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # -------------------------------------------------
 # Database pool
@@ -139,10 +116,6 @@ class UserLogin(BaseModel):
     password: str
 
 
-class CheckoutRequest(BaseModel):
-    tier: str
-
-
 # -------------------------------------------------
 # Helper functions (auth, hashing, etc.)
 # -------------------------------------------------
@@ -162,9 +135,7 @@ def create_access_token(data: dict) -> str:
     return encoded_jwt
 
 
-def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> dict:
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -175,9 +146,7 @@ def verify_token(
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def optional_verify_token(
-    authorization: Optional[str] = Header(None),
-) -> Optional[dict]:
+def optional_verify_token(authorization: Optional[str] = Header(None)) -> Optional[dict]:
     """Verify JWT token if provided, otherwise return None for guest access"""
     if not authorization:
         return None
@@ -557,7 +526,7 @@ async def transcribe_audio(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# -------- User stats / history --------
+# -------- User stats / history / upgrade --------
 @app.get("/api/user/stats")
 async def get_user_stats(user_data: dict = Depends(verify_token)):
     email = user_data.get("email")
@@ -572,13 +541,8 @@ async def get_transcription_history(
     return db_get_transcription_history(email, limit=limit)
 
 
-# -------- Legacy upgrade (keep for admin/dev only) --------
 @app.post("/api/user/upgrade")
 async def upgrade_tier(tier: str, user_data: dict = Depends(verify_token)):
-    """
-    Direct tier upgrade (no payment). Keep this only for admin / internal use.
-    Frontend should NOT call this in production – use Stripe Checkout instead.
-    """
     email = user_data.get("email")
 
     if tier not in TIER_LIMITS:
@@ -595,99 +559,6 @@ async def upgrade_tier(tier: str, user_data: dict = Depends(verify_token)):
         "tier": tier,
         "new_limit": TIER_LIMITS[tier],
     }
-
-
-# -------- Stripe billing --------
-@app.post("/api/billing/create-checkout-session")
-async def create_checkout_session(
-    body: CheckoutRequest,
-    user_data: dict = Depends(verify_token),
-):
-    """
-    Create a Stripe Checkout Session for a subscription upgrade.
-    """
-    email = user_data.get("email")
-    tier = body.tier
-
-    if tier not in STRIPE_PRICE_IDS or not STRIPE_PRICE_IDS[tier]:
-        raise HTTPException(status_code=400, detail="Invalid or unsupported tier")
-
-    try:
-        session = stripe.checkout.Session.create(
-            mode="subscription",  # or "payment" for one-off
-            payment_method_types=["card"],
-            customer_email=email,
-            line_items=[
-                {
-                    "price": STRIPE_PRICE_IDS[tier],
-                    "quantity": 1,
-                }
-            ],
-            success_url=f"{FRONTEND_URL}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{FRONTEND_URL}/billing/cancel",
-            metadata={
-                "tier": tier,
-                "user_email": email,
-            },
-        )
-        return {"checkout_url": session.url}
-    except Exception as e:
-        print("Stripe error:", str(e))
-        raise HTTPException(status_code=500, detail="Failed to create checkout session")
-
-
-@app.post("/api/billing/webhook")
-async def stripe_webhook(request: Request):
-    """
-    Stripe webhook to update user tier after successful payment.
-    Configure this URL in Stripe Dashboard.
-    """
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-
-    if not STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(
-            status_code=500,
-            detail="Stripe webhook secret not configured on server",
-        )
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
-    except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-
-    event_type = event["type"]
-    data_object = event["data"]["object"]
-
-    # When Checkout completes
-    if event_type == "checkout.session.completed":
-        metadata = data_object.get("metadata", {})
-        email = metadata.get("user_email")
-        tier = metadata.get("tier")
-
-        if email and tier in TIER_LIMITS:
-            print(f"Upgrading {email} to {tier} (checkout.session.completed)")
-            db_update_user_tier(email, tier)
-
-    # Optional: handle subscription updates (downgrades / upgrades by price_id)
-    elif event_type == "customer.subscription.updated":
-        subscription = data_object
-        items = subscription.get("items", {}).get("data", [])
-        if items:
-            price_id = items[0]["price"]["id"]
-            tier = None
-            for t, pid in STRIPE_PRICE_IDS.items():
-                if pid == price_id:
-                    tier = t
-                    break
-
-            # If you later store stripe_customer_id on user, you can look up which user to update here.
-
-    return {"received": True}
 
 
 # -------------------------------------------------
