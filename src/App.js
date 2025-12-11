@@ -82,6 +82,8 @@ export default function AudioTranscriptionSaaS() {
   // UI State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState('home');
+  const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [contactSubmitted, setContactSubmitted] = useState(false);
   
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -507,11 +509,17 @@ export default function AudioTranscriptionSaaS() {
                 <button onClick={() => setCurrentPage('home')} className={`text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
                   Home
                 </button>
+                <button onClick={() => setCurrentPage('features')} className={`text-sm font-medium transition-colors ${currentPage === 'features' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
+                  Features
+                </button>
                 <button onClick={() => setCurrentPage('pricing')} className={`text-sm font-medium transition-colors ${currentPage === 'pricing' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
                   Pricing
                 </button>
-                <button onClick={() => setCurrentPage('features')} className={`text-sm font-medium transition-colors ${currentPage === 'features' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
-                  Features
+                <button onClick={() => setCurrentPage('about')} className={`text-sm font-medium transition-colors ${currentPage === 'about' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
+                  About
+                </button>
+                <button onClick={() => setCurrentPage('contact')} className={`text-sm font-medium transition-colors ${currentPage === 'contact' ? 'text-emerald-600' : 'text-slate-600 hover:text-slate-900'}`}>
+                  Contact
                 </button>
               </>
             ) : (
@@ -587,8 +595,10 @@ export default function AudioTranscriptionSaaS() {
             {!isLoggedIn ? (
               <>
                 <button onClick={() => { setCurrentPage('home'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">Home</button>
-                <button onClick={() => { setCurrentPage('pricing'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">Pricing</button>
                 <button onClick={() => { setCurrentPage('features'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">Features</button>
+                <button onClick={() => { setCurrentPage('pricing'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">Pricing</button>
+                <button onClick={() => { setCurrentPage('about'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">About</button>
+                <button onClick={() => { setCurrentPage('contact'); setMobileMenuOpen(false); }} className="block w-full text-left py-2 text-slate-600">Contact</button>
                 <button onClick={() => { setShowAuthModal(true); setMobileMenuOpen(false); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium">Get Started</button>
               </>
             ) : (
@@ -1007,6 +1017,416 @@ export default function AudioTranscriptionSaaS() {
     </div>
   );
 
+  // About Page Component
+  const AboutPage = () => (
+    <div className="min-h-screen bg-white pt-24">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50/30 to-transparent"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+              About Voxify
+            </h1>
+            <p className="text-lg text-slate-600 leading-relaxed">
+              We're on a mission to make audio transcription accessible, accurate, and affordable for everyone. 
+              Our AI-powered platform transforms the way people work with audio content.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Our Story */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <span className="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-4">
+                Our Story
+              </span>
+              <h2 className="text-3xl font-bold text-slate-900 mb-6">
+                Built by creators, for creators
+              </h2>
+              <p className="text-slate-600 leading-relaxed mb-4">
+                Voxify was born from a simple frustration: spending hours transcribing interviews, meetings, and podcasts. 
+                We knew there had to be a better way.
+              </p>
+              <p className="text-slate-600 leading-relaxed mb-4">
+                Founded in 2024, our team of AI researchers and engineers set out to build the most accurate, 
+                fastest, and most user-friendly transcription service on the market.
+              </p>
+              <p className="text-slate-600 leading-relaxed">
+                Today, Voxify serves over 50,000 professionals worldwide—from journalists and podcasters to 
+                legal teams and medical professionals—helping them save countless hours every week.
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-1">
+              <div className="bg-white rounded-3xl p-8 h-full">
+                <div className="grid grid-cols-2 gap-6">
+                  {[
+                    { value: '50K+', label: 'Active Users' },
+                    { value: '10M+', label: 'Minutes Transcribed' },
+                    { value: '99%', label: 'Accuracy Rate' },
+                    { value: '99+', label: 'Languages' }
+                  ].map((stat, idx) => (
+                    <div key={idx} className="text-center p-4">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                        {stat.value}
+                      </div>
+                      <div className="text-slate-600 text-sm mt-1">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Values */}
+      <section className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Our Values</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              The principles that guide everything we do
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Shield,
+                title: 'Privacy First',
+                description: 'Your data is yours. We use enterprise-grade encryption and never store your audio files after processing.'
+              },
+              {
+                icon: Zap,
+                title: 'Relentless Innovation',
+                description: 'We continuously improve our AI models to deliver faster, more accurate transcriptions.'
+              },
+              {
+                icon: User,
+                title: 'Customer Obsessed',
+                description: 'Every feature we build starts with understanding our users\' needs and pain points.'
+              }
+            ].map((value, idx) => (
+              <div key={idx} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
+                <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                  <value.icon className="w-7 h-7 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">{value.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{value.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Team */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Meet Our Team</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              A diverse team of experts passionate about AI and audio technology
+            </p>
+          </div>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { name: 'Sarah Chen', role: 'CEO & Co-founder', initials: 'SC' },
+              { name: 'Marcus Johnson', role: 'CTO & Co-founder', initials: 'MJ' },
+              { name: 'Emily Rodriguez', role: 'Head of AI', initials: 'ER' },
+              { name: 'David Kim', role: 'Head of Product', initials: 'DK' }
+            ].map((member, idx) => (
+              <div key={idx} className="text-center">
+                <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
+                  <span className="text-2xl font-bold text-white">{member.initials}</span>
+                </div>
+                <h3 className="font-semibold text-slate-900">{member.name}</h3>
+                <p className="text-slate-500 text-sm">{member.role}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-6">
+            Join thousands of satisfied users
+          </h2>
+          <p className="text-slate-400 mb-8 max-w-xl mx-auto">
+            Start transcribing your audio files today and see the difference for yourself.
+          </p>
+          <button
+            onClick={() => { setShowAuthModal(true); setAuthMode('signup'); }}
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-4 rounded-full font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-xl shadow-emerald-500/30"
+          >
+            Get Started Free
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <VoxifyLogoSmall size={32} />
+              <span className="font-bold text-slate-900">Voxify</span>
+            </div>
+            <p className="text-sm text-slate-500">
+              © 2024 Voxify. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+
+  // Contact Page Component
+  const ContactPage = () => {
+    const handleContactSubmit = (e) => {
+      e.preventDefault();
+      // Here you would typically send to your backend
+      console.log('Contact form submitted:', contactForm);
+      setContactSubmitted(true);
+      setTimeout(() => {
+        setContactSubmitted(false);
+        setContactForm({ name: '', email: '', subject: '', message: '' });
+      }, 3000);
+    };
+
+    return (
+      <div className="min-h-screen bg-white pt-24">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50/30 to-transparent"></div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div className="text-center max-w-3xl mx-auto">
+              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+                Get in Touch
+              </h1>
+              <p className="text-lg text-slate-600">
+                Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Content */}
+        <section className="py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-16">
+              {/* Contact Form */}
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-6">Send us a message</h2>
+                
+                {contactSubmitted ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="w-8 h-8 text-emerald-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-slate-900 mb-2">Message Sent!</h3>
+                    <p className="text-slate-600">Thank you for reaching out. We'll get back to you within 24 hours.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleContactSubmit} className="space-y-6">
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Your Name</label>
+                        <input
+                          type="text"
+                          value={contactForm.name}
+                          onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
+                          required
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all"
+                          placeholder="John Smith"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+                        <input
+                          type="email"
+                          value={contactForm.email}
+                          onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
+                          required
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all"
+                          placeholder="john@company.com"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+                      <select
+                        value={contactForm.subject}
+                        onChange={(e) => setContactForm({...contactForm, subject: e.target.value})}
+                        required
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all"
+                      >
+                        <option value="">Select a topic</option>
+                        <option value="general">General Inquiry</option>
+                        <option value="sales">Sales & Pricing</option>
+                        <option value="support">Technical Support</option>
+                        <option value="enterprise">Enterprise Solutions</option>
+                        <option value="partnership">Partnership Opportunities</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Message</label>
+                      <textarea
+                        value={contactForm.message}
+                        onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
+                        required
+                        rows={5}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all resize-none"
+                        placeholder="Tell us how we can help..."
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20"
+                    >
+                      Send Message
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Contact Info */}
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-6">Other ways to reach us</h2>
+                
+                <div className="space-y-6">
+                  {/* Email */}
+                  <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Email Us</h3>
+                      <p className="text-slate-600 text-sm mt-1">For general inquiries and support</p>
+                      <a href="mailto:hello@voxify.ai" className="text-emerald-600 font-medium mt-2 inline-block hover:text-emerald-700">
+                        hello@voxify.ai
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Sales */}
+                  <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <CreditCard className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Sales Team</h3>
+                      <p className="text-slate-600 text-sm mt-1">For enterprise and custom plans</p>
+                      <a href="mailto:sales@voxify.ai" className="text-emerald-600 font-medium mt-2 inline-block hover:text-emerald-700">
+                        sales@voxify.ai
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Support */}
+                  <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <HelpCircle className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Help Center</h3>
+                      <p className="text-slate-600 text-sm mt-1">Browse our documentation and FAQs</p>
+                      <button className="text-emerald-600 font-medium mt-2 inline-block hover:text-emerald-700">
+                        Visit Help Center →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-start gap-4 p-6 bg-slate-50 rounded-2xl">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900">Location</h3>
+                      <p className="text-slate-600 text-sm mt-1">
+                        123 Innovation Drive<br />
+                        San Francisco, CA 94107<br />
+                        United States
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Response Time */}
+                <div className="mt-8 p-6 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Clock className="w-6 h-6" />
+                    <h3 className="font-semibold text-lg">Quick Response Time</h3>
+                  </div>
+                  <p className="text-emerald-100">
+                    We typically respond to all inquiries within 24 hours during business days. 
+                    For urgent support, Pro and Enterprise users get priority response.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="py-20 bg-slate-50">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">Frequently Asked Questions</h2>
+              <p className="text-slate-600">Quick answers to common questions</p>
+            </div>
+            <div className="space-y-4">
+              {[
+                {
+                  q: 'How accurate is Voxify transcription?',
+                  a: 'Voxify achieves up to 99% accuracy for clear audio in supported languages. Accuracy may vary based on audio quality, background noise, and speaker accents.'
+                },
+                {
+                  q: 'What audio formats do you support?',
+                  a: 'We support all major audio formats including MP3, WAV, M4A, FLAC, OGG, WebM, and more than 20 other formats.'
+                },
+                {
+                  q: 'Is my data secure?',
+                  a: 'Absolutely. We use 256-bit encryption for all data transfers and storage. Audio files are automatically deleted after processing, and we never share your data with third parties.'
+                },
+                {
+                  q: 'Can I cancel my subscription anytime?',
+                  a: 'Yes, you can cancel your subscription at any time. Your access will continue until the end of your billing period.'
+                }
+              ].map((faq, idx) => (
+                <div key={idx} className="bg-white rounded-xl p-6 border border-slate-200">
+                  <h3 className="font-semibold text-slate-900 mb-2">{faq.q}</h3>
+                  <p className="text-slate-600">{faq.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-12 bg-white border-t border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <VoxifyLogoSmall size={32} />
+                <span className="font-bold text-slate-900">Voxify</span>
+              </div>
+              <p className="text-sm text-slate-500">
+                © 2024 Voxify. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  };
+
   // Dashboard Component (Logged-in experience)
   const Dashboard = () => (
     <div className="min-h-screen bg-slate-50 pt-16">
@@ -1384,6 +1804,8 @@ export default function AudioTranscriptionSaaS() {
           {currentPage === 'home' && <HomePage />}
           {currentPage === 'pricing' && <PricingPage />}
           {currentPage === 'features' && <FeaturesPage />}
+          {currentPage === 'about' && <AboutPage />}
+          {currentPage === 'contact' && <ContactPage />}
         </>
       )}
     </div>
