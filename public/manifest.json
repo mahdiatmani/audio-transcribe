@@ -1,27 +1,11 @@
 {
   "short_name": "Voxify",
   "name": "Voxify - AI Audio Transcription",
-  "description": "Professional AI-powered audio transcription. Transform audio into perfect text in seconds.",
   "icons": [
     {
-      "src": "favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
-    },
-    {
-      "src": "favicon-16x16.png",
-      "type": "image/png",
-      "sizes": "16x16"
-    },
-    {
-      "src": "favicon-32x32.png",
-      "type": "image/png",
-      "sizes": "32x32"
-    },
-    {
-      "src": "apple-touch-icon.png",
-      "type": "image/png",
-      "sizes": "180x180"
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
     },
     {
       "src": "logo192.png",
@@ -37,7 +21,5 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#10b981",
-  "background_color": "#ffffff",
-  "orientation": "portrait-primary",
-  "categories": ["productivity", "utilities", "business"]
+  "background_color": "#ffffff"
 }
