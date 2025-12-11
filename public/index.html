@@ -2,15 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    
+    <!-- Favicon - SVG for modern browsers -->
+    <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
+    <!-- Fallback PNG favicon for older browsers -->
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="TranscribeAI - Audio to Text Transcription" />
+    <meta name="theme-color" content="#10b981" />
     
-    <!-- Add Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Voxify - Professional AI-powered audio transcription. Transform audio into perfect text in seconds. Trusted by 50,000+ professionals." />
+    <meta name="keywords" content="transcription, audio to text, speech to text, AI transcription, voice transcription" />
+    <meta name="author" content="Voxify" />
     
-    <title>TranscribeAI</title>
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Voxify - AI Audio Transcription" />
+    <meta property="og:description" content="Transform audio into perfect text in seconds. Professional-grade AI transcription." />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Voxify - AI Audio Transcription" />
+    <meta name="twitter:description" content="Transform audio into perfect text in seconds." />
+    
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Page Title -->
+    <title>Voxify - AI Audio Transcription</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
