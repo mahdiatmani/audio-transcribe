@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Mail, Shield, Clock, Globe, Headphones, Play, Star, ChevronRight, Menu, X, Settings, BarChart3, CreditCard, HelpCircle, ArrowRight, Sparkles } from 'lucide-react';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// API CONFIGURATION - Change this to your backend URL
+// ═══════════════════════════════════════════════════════════════════════════
+const API_BASE_URL = 'https://transcribe-backend-f6o6.onrender.com';
+
 // Custom Voxify Logo Component
 const VoxifyLogo = ({ size = 40 }) => (
   <svg 
@@ -171,7 +176,7 @@ export default function AudioTranscriptionSaaS() {
         ? { username, email, password }
         : { email, password };
 
-      const response = await fetch(`http://localhost:8000/auth/${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/auth/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +216,7 @@ export default function AudioTranscriptionSaaS() {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setAuthError('Server error. Make sure backend is running.');
+      setAuthError('Connection error. Please check your internet connection and try again.');
     }
   };
 
@@ -314,7 +319,7 @@ export default function AudioTranscriptionSaaS() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('http://localhost:8000/api/transcribe', {
+      const response = await fetch(`${API_BASE_URL}/api/transcribe`, {
         method: 'POST',
         headers: headers,
         body: formData,
@@ -341,7 +346,7 @@ export default function AudioTranscriptionSaaS() {
       }
     } catch (err) {
       console.error('Transcription error:', err);
-      setError('Connection error. Make sure backend is running at http://localhost:8000');
+      setError('Connection error. Please check your internet connection and try again.');
     } finally {
       setIsProcessing(false);
     }
