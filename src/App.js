@@ -6,6 +6,39 @@ import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Za
 // ═══════════════════════════════════════════════════════════════════════════
 const API_BASE_URL = 'https://transcribe-backend-f6o6.onrender.com';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAL STORAGE HELPERS - Replacing window.storage with localStorage
+// ═══════════════════════════════════════════════════════════════════════════
+const storage = {
+  get: (key) => {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? { value: item } : null;
+    } catch (err) {
+      console.error('Storage get error:', err);
+      return null;
+    }
+  },
+  set: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return { key, value };
+    } catch (err) {
+      console.error('Storage set error:', err);
+      return null;
+    }
+  },
+  remove: (key) => {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (err) {
+      console.error('Storage remove error:', err);
+      return false;
+    }
+  }
+};
+
 // Custom Voxify Logo Component
 const VoxifyLogo = ({ size = 40 }) => (
   <svg 
@@ -62,7 +95,7 @@ const VoxifyLogoSmall = ({ size = 32 }) => (
 
 export default function AudioTranscriptionSaaS() {
   // ═══════════════════════════════════════════════════════════════════════════
-  // STATE VARIABLES - PRESERVED (Connected to backend/database)
+  // STATE VARIABLES
   // ═══════════════════════════════════════════════════════════════════════════
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -71,6 +104,7 @@ export default function AudioTranscriptionSaaS() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [authError, setAuthError] = useState('');
+  const [authToken, setAuthToken] = useState('');
   
   const [file, setFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -104,60 +138,64 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BACKEND FUNCTIONS - PRESERVED
+  // INITIALIZATION - Check for existing session on mount
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
-    loadUserData();
-  }, [isLoggedIn]);
-
-  const loadUserData = async () => {
-    if (!isLoggedIn) return;
-    
-    try {
-      const userData = await window.storage.get(`user:${userEmail}`);
-      if (userData) {
-        const data = JSON.parse(userData.value);
-        setTranscriptionCount(data.transcriptionCount || 0);
-        setUsageMinutes(data.usageMinutes || 0);
-        setUserTier(data.tier || 'free');
-        setUsername(data.username || '');
+    // Check if user is already logged in
+    const storedAuth = storage.get('voxify_auth');
+    if (storedAuth) {
+      try {
+        const authData = JSON.parse(storedAuth.value);
+        if (authData.token && authData.email) {
+          setIsLoggedIn(true);
+          setAuthToken(authData.token);
+          setUserEmail(authData.email);
+          setUsername(authData.username || '');
+          setUserTier(authData.tier || 'free');
+          setUsageMinutes(authData.usageMinutes || 0);
+          setTranscriptionCount(authData.transcriptionCount || 0);
+          setCurrentPage('dashboard');
+          
+          // Load history
+          const storedHistory = storage.get('voxify_history');
+          if (storedHistory) {
+            setTranscriptionHistory(JSON.parse(storedHistory.value));
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing stored auth:', err);
+        storage.remove('voxify_auth');
       }
-      
-      const historyData = await window.storage.get(`history:${userEmail}`);
-      if (historyData) {
-        setTranscriptionHistory(JSON.parse(historyData.value));
-      }
-    } catch (err) {
-      console.log('No user data found, starting fresh');
     }
-  };
+  }, []);
 
-  const saveUserData = async () => {
-    if (!isLoggedIn) return;
-    
-    try {
-      await window.storage.set(`user:${userEmail}`, JSON.stringify({
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAVE USER DATA when it changes
+  // ═══════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (isLoggedIn && userEmail) {
+      storage.set('voxify_auth', JSON.stringify({
+        token: authToken,
         email: userEmail,
         username,
-        transcriptionCount,
-        usageMinutes,
         tier: userTier,
+        usageMinutes,
+        transcriptionCount,
         lastUpdated: new Date().toISOString()
       }));
-      
-      await window.storage.set(`history:${userEmail}`, JSON.stringify(transcriptionHistory));
-    } catch (err) {
-      console.error('Failed to save user data');
     }
-  };
+  }, [isLoggedIn, userEmail, username, userTier, usageMinutes, transcriptionCount, authToken]);
 
+  // Save history when it changes
   useEffect(() => {
-    if (isLoggedIn) {
-      saveUserData();
+    if (isLoggedIn && transcriptionHistory.length > 0) {
+      storage.set('voxify_history', JSON.stringify(transcriptionHistory));
     }
-  }, [transcriptionCount, usageMinutes, userTier, transcriptionHistory]);
+  }, [transcriptionHistory, isLoggedIn]);
 
-  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUTHENTICATION HANDLER
+  // ═══════════════════════════════════════════════════════════════════════════
   const handleAuth = async () => {
     setAuthError('');
 
@@ -179,6 +217,8 @@ export default function AudioTranscriptionSaaS() {
         ? { username, email, password }
         : { email, password };
 
+      console.log(`Attempting ${endpoint} to ${API_BASE_URL}/auth/${endpoint}`);
+
       const response = await fetch(`${API_BASE_URL}/auth/${endpoint}`, {
         method: 'POST',
         headers: {
@@ -188,34 +228,41 @@ export default function AudioTranscriptionSaaS() {
       });
 
       const data = await response.json();
+      console.log('Auth response:', data);
 
       if (response.ok) {
-        await window.storage.set(`auth:${email}`, JSON.stringify({
-          email,
-          password,
-          username: data.user.username,
+        // Store auth data
+        const authData = {
           token: data.token,
-          createdAt: new Date().toISOString()
-        }));
-
-        await window.storage.set(`user:${email}`, JSON.stringify({
-          email,
+          email: data.user.email,
           username: data.user.username,
-          transcriptionCount: data.user.transcription_count || 0,
-          usageMinutes: data.user.usage_minutes || 0,
           tier: data.user.tier || 'free',
+          usageMinutes: data.user.usage_minutes || 0,
+          transcriptionCount: data.user.transcription_count || 0,
           createdAt: new Date().toISOString()
-        }));
+        };
+        
+        storage.set('voxify_auth', JSON.stringify(authData));
 
+        // Update state
         setIsLoggedIn(true);
-        setUserEmail(email);
+        setAuthToken(data.token);
+        setUserEmail(data.user.email);
         setUsername(data.user.username);
+        setUserTier(data.user.tier || 'free');
+        setUsageMinutes(data.user.usage_minutes || 0);
+        setTranscriptionCount(data.user.transcription_count || 0);
+        
+        // Close modal and reset form
         setShowAuthModal(false);
         setEmail('');
         setPassword('');
         setCurrentPage('dashboard');
+        
+        console.log('Login successful!');
       } else {
         setAuthError(data.detail || 'Authentication failed');
+        console.error('Auth failed:', data);
       }
     } catch (err) {
       console.error('Auth error:', err);
@@ -226,7 +273,13 @@ export default function AudioTranscriptionSaaS() {
   };
 
   const handleLogout = () => {
+    // Clear storage
+    storage.remove('voxify_auth');
+    storage.remove('voxify_history');
+    
+    // Reset state
     setIsLoggedIn(false);
+    setAuthToken('');
     setUserEmail('');
     setUsername('');
     setTranscriptionCount(0);
@@ -306,22 +359,9 @@ export default function AudioTranscriptionSaaS() {
       const formData = new FormData();
       formData.append('file', file);
 
-      let token = null;
-      if (isLoggedIn) {
-        try {
-          const authData = await window.storage.get(`auth:${userEmail}`);
-          if (authData) {
-            const userData = JSON.parse(authData.value);
-            token = userData.token;
-          }
-        } catch (err) {
-          console.log('No token found');
-        }
-      }
-
       const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
       }
 
       const response = await fetch(`${API_BASE_URL}/api/transcribe`, {
@@ -367,14 +407,35 @@ export default function AudioTranscriptionSaaS() {
     document.body.removeChild(element);
   };
 
-  const upgradeTier = (tier) => {
+  const upgradeTier = async (tier) => {
     if (!isLoggedIn) {
       setShowAuthModal(true);
       setError('Please login to upgrade your plan');
       return;
     }
-    setUserTier(tier);
-    setError('');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/upgrade?tier=${tier}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        setUserTier(tier);
+        setError('');
+      } else {
+        const data = await response.json();
+        setError(data.detail || 'Failed to upgrade');
+      }
+    } catch (err) {
+      console.error('Upgrade error:', err);
+      // Still update locally for demo purposes
+      setUserTier(tier);
+      setError('');
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1231,7 +1292,6 @@ export default function AudioTranscriptionSaaS() {
   const ContactPage = () => {
     const handleContactSubmit = (e) => {
       e.preventDefault();
-      // Here you would typically send to your backend
       console.log('Contact form submitted:', contactForm);
       setContactSubmitted(true);
       setTimeout(() => {
