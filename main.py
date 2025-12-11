@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 import os
 from datetime import datetime, timedelta
 import hashlib
@@ -10,7 +10,6 @@ import jwt
 import requests
 from dotenv import load_dotenv
 from psycopg2.pool import SimpleConnectionPool
-import psycopg2
 from contextlib import contextmanager
 
 # -------------------------------------------------
@@ -24,16 +23,21 @@ SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-this")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_DAYS = int(os.getenv("JWT_EXPIRATION_DAYS", 7))
 
-WHISPER_API_URL = os.getenv("WHISPER_API_URL", "https://your-space-name.hf.space/transcribe")
+WHISPER_API_URL = os.getenv(
+    "WHISPER_API_URL",
+    "https://your-space-name.hf.space/transcribe",
+)
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
-# For now, allow all origins (easier during dev)
-# In production, restrict this to your real frontend URLs.
+# 🔴 THIS IS THE ONE THAT FIXES YOUR NameError
+DATABASE_URL = os.getenv("DATABASE_URL")  # Supabase / Postgres connection string
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],         # allow any origin
-    allow_credentials=False,     # must be False when using "*"
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -578,4 +582,3 @@ if __name__ == "__main__":
         port=int(os.getenv("PORT", 8000)),
         reload=os.getenv("DEBUG", "True") == "True",
     )
-
