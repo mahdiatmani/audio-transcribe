@@ -1,6 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Header, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
 import os
@@ -8,6 +9,7 @@ from datetime import datetime, timedelta
 import hashlib
 import jwt
 import requests
+import stripe
 from dotenv import load_dotenv
 from psycopg2.pool import SimpleConnectionPool
 from contextlib import contextmanager
@@ -17,21 +19,27 @@ from contextlib import contextmanager
 # -------------------------------------------------
 load_dotenv()
 
-app = FastAPI(title="TranscribeAI API", version="1.0.0")
+app = FastAPI(title="Voxify API", version="2.0.0")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-this")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_DAYS = int(os.getenv("JWT_EXPIRATION_DAYS", 7))
 
-WHISPER_API_URL = os.getenv(
-    "WHISPER_API_URL",
-    "https://your-space-name.hf.space/transcribe",
-)
-
+WHISPER_API_URL = os.getenv("WHISPER_API_URL", "")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 🔴 THIS IS THE ONE THAT FIXES YOUR NameError
-DATABASE_URL = os.getenv("DATABASE_URL")  # Supabase / Postgres connection string
+# Stripe Configuration
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Stripe Price IDs (create these in your Stripe Dashboard)
+STRIPE_PRICES = {
+    "starter": os.getenv("STRIPE_STARTER_PRICE_ID"),
+    "pro": os.getenv("STRIPE_PRO_PRICE_ID"),
+    "enterprise": os.getenv("STRIPE_ENTERPRISE_PRICE_ID"),
+}
 
 # CORS
 app.add_middleware(
@@ -44,12 +52,47 @@ app.add_middleware(
 
 security = HTTPBearer()
 
-# Pricing tiers from .env (in minutes)
+# Pricing tiers (in minutes)
 TIER_LIMITS: Dict[str, int] = {
     "free": int(os.getenv("TIER_FREE_LIMIT", 15)),
     "starter": int(os.getenv("TIER_STARTER_LIMIT", 300)),
     "pro": int(os.getenv("TIER_PRO_LIMIT", 1000)),
     "enterprise": int(os.getenv("TIER_ENTERPRISE_LIMIT", 10000)),
+}
+
+# Supported languages for Whisper
+SUPPORTED_LANGUAGES = {
+    "auto": "Auto-detect",
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "ru": "Russian",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "tr": "Turkish",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "id": "Indonesian",
+    "ms": "Malay",
+    "fil": "Filipino",
+    "uk": "Ukrainian",
+    "cs": "Czech",
+    "ro": "Romanian",
+    "hu": "Hungarian",
+    "el": "Greek",
+    "he": "Hebrew",
+    "sv": "Swedish",
+    "da": "Danish",
+    "fi": "Finnish",
+    "no": "Norwegian",
 }
 
 # -------------------------------------------------
@@ -62,9 +105,9 @@ db_pool: Optional[SimpleConnectionPool] = None
 def startup_event():
     global db_pool
     if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is not set in environment variables")
+        print("⚠️ DATABASE_URL is not set - running in memory mode")
+        return
 
-    # Create connection pool
     db_pool = SimpleConnectionPool(
         minconn=1,
         maxconn=10,
@@ -73,10 +116,27 @@ def startup_event():
     )
     print("✅ Database pool created successfully")
 
-    # Simple check: ensure users table exists
+    # Ensure tables exist
     with get_db_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM users LIMIT 1;")
+            # Add stripe columns if they don't exist
+            cur.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='users' AND column_name='stripe_customer_id') THEN
+                        ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='users' AND column_name='stripe_subscription_id') THEN
+                        ALTER TABLE users ADD COLUMN stripe_subscription_id VARCHAR(255);
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='users' AND column_name='subscription_status') THEN
+                        ALTER TABLE users ADD COLUMN subscription_status VARCHAR(50) DEFAULT 'inactive';
+                    END IF;
+                END $$;
+            """)
     print("✅ Database tables ready")
 
 
@@ -116,8 +176,12 @@ class UserLogin(BaseModel):
     password: str
 
 
+class CheckoutRequest(BaseModel):
+    tier: str
+
+
 # -------------------------------------------------
-# Helper functions (auth, hashing, etc.)
+# Helper functions
 # -------------------------------------------------
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -131,8 +195,7 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=JWT_EXPIRATION_DAYS)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
@@ -147,45 +210,74 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
 
 
 def optional_verify_token(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    """Verify JWT token if provided, otherwise return None for guest access"""
-    if not authorization:
+    if not authorization or not authorization.startswith("Bearer "):
         return None
-
-    if not authorization.startswith("Bearer "):
-        return None
-
     token = authorization.replace("Bearer ", "")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
 
 
-def transcribe_with_self_hosted_whisper(audio_bytes: bytes, filename: str) -> str:
+def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> dict:
     """
-    Transcribe using self-hosted Whisper API on Hugging Face Spaces
+    Transcribe using self-hosted Whisper API with language selection
     """
+    if not WHISPER_API_URL:
+        return {
+            "transcription": "⚠️ Whisper API not configured",
+            "language": "unknown",
+            "success": False
+        }
+    
     try:
         files = {"file": (filename, audio_bytes, "audio/mpeg")}
-        response = requests.post(WHISPER_API_URL, files=files, timeout=120)
+        data = {}
+        
+        # Only send language if not auto-detect
+        if language and language != "auto":
+            data["language"] = language
+        
+        response = requests.post(
+            WHISPER_API_URL, 
+            files=files, 
+            data=data,
+            timeout=120
+        )
 
         if response.status_code == 200:
             result = response.json()
-            return result.get("transcription", "Transcription completed successfully.")
+            return {
+                "transcription": result.get("transcription", ""),
+                "language": result.get("language", language if language != "auto" else "detected"),
+                "success": True
+            }
         elif response.status_code == 503:
-            return "⚠️ Whisper service is starting up. Please try again in 20-30 seconds."
+            return {
+                "transcription": "⚠️ Whisper service is starting up. Please try again in 20-30 seconds.",
+                "language": "unknown",
+                "success": False
+            }
         else:
-            return f"⚠️ Service temporarily unavailable. Status: {response.status_code}"
+            return {
+                "transcription": f"⚠️ Service error. Status: {response.status_code}",
+                "language": "unknown",
+                "success": False
+            }
 
     except requests.exceptions.Timeout:
-        return "⚠️ Transcription took too long. Try with a shorter audio file."
-    except requests.exceptions.RequestException as e:
-        print(f"Transcription error: {str(e)}")
-        return "⚠️ Failed to connect to transcription service. Please try again."
+        return {
+            "transcription": "⚠️ Transcription timed out. Try a shorter audio file.",
+            "language": "unknown",
+            "success": False
+        }
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        return "⚠️ Transcription failed. Please try again."
+        print(f"Transcription error: {str(e)}")
+        return {
+            "transcription": "⚠️ Transcription failed. Please try again.",
+            "language": "unknown",
+            "success": False
+        }
 
 
 # -------------------------------------------------
@@ -197,10 +289,10 @@ def db_get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
             cur.execute(
                 """
                 SELECT id, username, email, password_hash, tier,
-                       usage_minutes, transcription_count,
+                       usage_minutes, transcription_count, stripe_customer_id,
+                       stripe_subscription_id, subscription_status,
                        created_at, updated_at
-                FROM users
-                WHERE email = %s
+                FROM users WHERE email = %s
                 """,
                 (email,),
             )
@@ -217,8 +309,11 @@ def db_get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
         "tier": row[4],
         "usage_minutes": row[5],
         "transcription_count": row[6],
-        "created_at": row[7],
-        "updated_at": row[8],
+        "stripe_customer_id": row[7],
+        "stripe_subscription_id": row[8],
+        "subscription_status": row[9],
+        "created_at": row[10],
+        "updated_at": row[11],
     }
 
 
@@ -229,7 +324,7 @@ def db_create_user(username: str, email: str, password_hash: str) -> Dict[str, A
                 """
                 INSERT INTO users (username, email, password_hash, tier, usage_minutes, transcription_count)
                 VALUES (%s, %s, %s, %s, 0, 0)
-                RETURNING id, username, email, tier, usage_minutes, transcription_count, created_at, updated_at
+                RETURNING id, username, email, tier, usage_minutes, transcription_count
                 """,
                 (username, email, password_hash, "free"),
             )
@@ -242,8 +337,6 @@ def db_create_user(username: str, email: str, password_hash: str) -> Dict[str, A
         "tier": row[3],
         "usage_minutes": row[4],
         "transcription_count": row[5],
-        "created_at": row[6],
-        "updated_at": row[7],
     }
 
 
@@ -262,66 +355,106 @@ def db_update_user_usage(email: str, minutes_delta: int) -> None:
             )
 
 
-def db_insert_transcription(
-    user_email: str,
-    filename: str,
-    transcription: str,
-    duration: int,
-    language: str = "auto",
-) -> None:
+def db_insert_transcription(user_email: str, filename: str, transcription: str, duration: int, language: str = "auto") -> None:
+    with get_db_conn() as conn:
+        with conn.cursor() as cur:
+            # Get user id
+            cur.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+            row = cur.fetchone()
+            if not row:
+                return
+            user_id = row[0]
+            
+            cur.execute(
+                """
+                INSERT INTO transcriptions (user_id, filename, transcription, duration, language)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (user_id, filename, transcription, duration, language),
+            )
+
+
+def db_update_stripe_customer(email: str, customer_id: str) -> None:
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO transcriptions (user_email, filename, transcription, duration, language)
-                VALUES (%s, %s, %s, %s, %s)
+                UPDATE users SET stripe_customer_id = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE email = %s
                 """,
-                (user_email, filename, transcription, duration, language),
+                (customer_id, email),
+            )
+
+
+def db_update_subscription(email: str, subscription_id: str, tier: str, status: str) -> None:
+    with get_db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users 
+                SET stripe_subscription_id = %s, 
+                    tier = %s, 
+                    subscription_status = %s,
+                    usage_minutes = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE email = %s
+                """,
+                (subscription_id, tier, status, email),
+            )
+
+
+def db_cancel_subscription(customer_id: str) -> None:
+    with get_db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users 
+                SET tier = 'free', 
+                    subscription_status = 'cancelled',
+                    stripe_subscription_id = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE stripe_customer_id = %s
+                """,
+                (customer_id,),
             )
 
 
 def db_get_user_stats(email: str) -> Dict[str, Any]:
-    with get_db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT username, email, tier, usage_minutes, transcription_count
-                FROM users
-                WHERE email = %s
-                """,
-                (email,),
-            )
-            row = cur.fetchone()
-
-    if not row:
+    user = db_get_user_by_email(email)
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    username, email, tier, usage_minutes, transcription_count = row
-    tier_limit = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
-
+    
+    tier_limit = TIER_LIMITS.get(user["tier"], TIER_LIMITS["free"])
     return {
-        "email": email,
-        "username": username,
-        "tier": tier,
-        "usage_minutes": usage_minutes,
-        "transcription_count": transcription_count,
+        "email": user["email"],
+        "username": user["username"],
+        "tier": user["tier"],
+        "usage_minutes": user["usage_minutes"],
+        "transcription_count": user["transcription_count"],
         "limit": tier_limit,
-        "remaining": tier_limit - usage_minutes,
+        "remaining": tier_limit - user["usage_minutes"],
+        "subscription_status": user.get("subscription_status", "inactive"),
     }
 
 
-def db_get_transcription_history(email: str, limit: int = 10) -> Dict[str, Any]:
+def db_get_transcription_history(email: str, limit: int = 10):
     with get_db_conn() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            row = cur.fetchone()
+            if not row:
+                return {"history": [], "total": 0}
+            user_id = row[0]
+
             cur.execute(
                 """
-                SELECT id, filename, transcription, duration, created_at
+                SELECT id, filename, transcription, duration, language, created_at
                 FROM transcriptions
-                WHERE user_email = %s
+                WHERE user_id = %s
                 ORDER BY created_at DESC
                 LIMIT %s
                 """,
-                (email, limit),
+                (user_id, limit),
             )
             rows = cur.fetchall()
 
@@ -331,25 +464,12 @@ def db_get_transcription_history(email: str, limit: int = 10) -> Dict[str, Any]:
             "filename": r[1],
             "transcription": r[2],
             "duration": r[3],
-            "timestamp": r[4].isoformat() if isinstance(r[4], datetime) else r[4],
+            "language": r[4] or "auto",
+            "timestamp": r[5].isoformat() if r[5] else None,
         }
         for r in rows
     ]
-
     return {"history": history, "total": len(history)}
-
-
-def db_update_user_tier(email: str, tier: str) -> None:
-    with get_db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE users
-                SET tier = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE email = %s
-                """,
-                (tier, email),
-            )
 
 
 # -------------------------------------------------
@@ -359,14 +479,19 @@ def db_update_user_tier(email: str, tier: str) -> None:
 async def root():
     return {
         "status": "online",
-        "message": "TranscribeAI API",
-        "version": "1.0.0",
-        "config": {
-            "whisper_configured": bool(WHISPER_API_URL),
-            "whisper_endpoint": WHISPER_API_URL if WHISPER_API_URL else "Not configured",
-            "cors_origins": CORS_ORIGINS,
-            "tier_limits": TIER_LIMITS,
-        },
+        "service": "Voxify API",
+        "version": "2.0.0",
+        "stripe_configured": bool(stripe.api_key),
+        "whisper_configured": bool(WHISPER_API_URL),
+    }
+
+
+@app.get("/api/languages")
+async def get_languages():
+    """Get list of supported languages for transcription"""
+    return {
+        "languages": SUPPORTED_LANGUAGES,
+        "default": "auto"
     }
 
 
@@ -375,104 +500,102 @@ async def check_whisper_health():
     try:
         health_url = WHISPER_API_URL.replace("/transcribe", "/health")
         response = requests.get(health_url, timeout=5)
-
-        if response.status_code == 200:
-            return {
-                "status": "healthy",
-                "whisper_api": "online",
-                "endpoint": WHISPER_API_URL,
-            }
-        else:
-            return {
-                "status": "unhealthy",
-                "whisper_api": "offline",
-                "endpoint": WHISPER_API_URL,
-            }
-    except Exception:
         return {
-            "status": "unhealthy",
-            "whisper_api": "unreachable",
-            "endpoint": WHISPER_API_URL,
+            "status": "healthy" if response.status_code == 200 else "unhealthy",
+            "whisper_api": "online" if response.status_code == 200 else "offline",
         }
+    except Exception:
+        return {"status": "unhealthy", "whisper_api": "unreachable"}
 
 
 # -------- Auth --------
 @app.post("/auth/signup")
 async def signup(user: UserCreate):
-    existing = db_get_user_by_email(user.email)
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    password_hash = hash_password(user.password)
-    created_user = db_create_user(user.username, user.email, password_hash)
-
-    token = create_access_token({"email": created_user["email"]})
-
-    return {
-        "message": "User created successfully",
-        "token": token,
-        "user": {
-            "email": created_user["email"],
-            "username": created_user["username"],
-            "tier": created_user["tier"],
-            "usage_minutes": created_user["usage_minutes"],
-            "transcription_count": created_user["transcription_count"],
-        },
-    }
+    if db_pool:
+        existing = db_get_user_by_email(user.email)
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        password_hash = hash_password(user.password)
+        created_user = db_create_user(user.username, user.email, password_hash)
+        token = create_access_token({"email": created_user["email"]})
+        
+        return {
+            "message": "User created successfully",
+            "token": token,
+            "user": {
+                "email": created_user["email"],
+                "username": created_user["username"],
+                "tier": created_user["tier"],
+                "usage_minutes": created_user["usage_minutes"],
+                "transcription_count": created_user["transcription_count"],
+            },
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Database not configured")
 
 
 @app.post("/auth/login")
 async def login(credentials: UserLogin):
-    user = db_get_user_by_email(credentials.email)
-    if not user or not verify_password(credentials.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if db_pool:
+        user = db_get_user_by_email(credentials.email)
+        if not user or not verify_password(credentials.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        token = create_access_token({"email": user["email"]})
+        
+        return {
+            "message": "Login successful",
+            "token": token,
+            "user": {
+                "email": user["email"],
+                "username": user["username"],
+                "tier": user["tier"],
+                "usage_minutes": user["usage_minutes"],
+                "transcription_count": user["transcription_count"],
+            },
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Database not configured")
 
-    token = create_access_token({"email": user["email"]})
 
-    return {
-        "message": "Login successful",
-        "token": token,
-        "user": {
-            "email": user["email"],
-            "username": user["username"],
-            "tier": user["tier"],
-            "usage_minutes": user["usage_minutes"],
-            "transcription_count": user["transcription_count"],
-        },
-    }
-
-
-# -------- Transcription --------
+# -------- Transcription with Language Support --------
 @app.post("/api/transcribe")
 async def transcribe_audio(
     file: UploadFile = File(...),
+    language: str = Form(default="auto"),
     user_data: Optional[dict] = Depends(optional_verify_token),
 ):
     """
-    Transcribe audio file.
-    - Guest users: no DB, just call Whisper and return result.
-    - Auth users: enforce tier limits and store usage + transcription in DB.
+    Transcribe audio file with optional language selection.
+    - language: Language code (e.g., 'en', 'es', 'fr') or 'auto' for auto-detection
     """
+    # Validate language
+    if language not in SUPPORTED_LANGUAGES:
+        language = "auto"
+    
     # Guest mode
     if not user_data:
         try:
             audio_bytes = await file.read()
-            transcription_text = transcribe_with_self_hosted_whisper(
-                audio_bytes, file.filename
-            )
-
+            result = transcribe_with_whisper(audio_bytes, file.filename, language)
+            
             return {
-                "success": True,
-                "transcription": transcription_text,
-                "duration": 2,  # you can compute real duration if you want
+                "success": result["success"],
+                "transcription": result["transcription"],
+                "language": result["language"],
+                "duration": 2,
                 "filename": file.filename,
-                "usage": {"used": 0, "limit": 15, "remaining": 15},
-                "note": "Guest mode - create an account to save your transcriptions!",
+                "usage": {"used": 0, "limit": 3, "remaining": 3},
+                "guest": True,
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
     # Authenticated mode
+    if not db_pool:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
     email = user_data.get("email")
     user = db_get_user_by_email(email)
     if not user:
@@ -480,9 +603,6 @@ async def transcribe_audio(
 
     tier = user["tier"]
     tier_limit = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
-
-    # Here we fake a 2-minute duration.
-    # Ideally, get real audio duration from the file.
     estimated_duration = 2
 
     if user["usage_minutes"] + estimated_duration > tier_limit:
@@ -493,27 +613,26 @@ async def transcribe_audio(
 
     try:
         audio_bytes = await file.read()
-        transcription_text = transcribe_with_self_hosted_whisper(
-            audio_bytes, file.filename
-        )
+        result = transcribe_with_whisper(audio_bytes, file.filename, language)
 
-        # Update usage + count
+        # Update usage
         db_update_user_usage(email, estimated_duration)
 
-        # Store transcription
+        # Store transcription with language
         db_insert_transcription(
             user_email=email,
             filename=file.filename,
-            transcription=transcription_text,
+            transcription=result["transcription"],
             duration=estimated_duration,
+            language=result["language"],
         )
 
-        # Fetch updated stats for response
         updated_user = db_get_user_by_email(email)
 
         return {
-            "success": True,
-            "transcription": transcription_text,
+            "success": result["success"],
+            "transcription": result["transcription"],
+            "language": result["language"],
             "duration": estimated_duration,
             "filename": file.filename,
             "usage": {
@@ -526,7 +645,178 @@ async def transcribe_audio(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# -------- User stats / history / upgrade --------
+# -------- Stripe Payment Endpoints --------
+@app.post("/api/create-checkout-session")
+async def create_checkout_session(
+    request: CheckoutRequest,
+    user_data: dict = Depends(verify_token)
+):
+    """Create Stripe Checkout session for subscription"""
+    if not stripe.api_key:
+        raise HTTPException(status_code=500, detail="Stripe not configured")
+    
+    tier = request.tier
+    if tier not in STRIPE_PRICES or tier == "free":
+        raise HTTPException(status_code=400, detail="Invalid tier")
+    
+    price_id = STRIPE_PRICES[tier]
+    if not price_id:
+        raise HTTPException(status_code=500, detail=f"Price ID not configured for {tier}")
+    
+    email = user_data.get("email")
+    user = db_get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        # Get or create Stripe customer
+        customer_id = user.get("stripe_customer_id")
+        
+        if not customer_id:
+            customer = stripe.Customer.create(
+                email=email,
+                name=user["username"],
+                metadata={"user_email": email}
+            )
+            customer_id = customer.id
+            db_update_stripe_customer(email, customer_id)
+        
+        # Create checkout session
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{
+                "price": price_id,
+                "quantity": 1
+            }],
+            mode="subscription",
+            success_url=f"{FRONTEND_URL}?payment=success&tier={tier}",
+            cancel_url=f"{FRONTEND_URL}?payment=cancelled",
+            metadata={
+                "user_email": email,
+                "tier": tier
+            }
+        )
+        
+        return {
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id
+        }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/webhook/stripe")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhooks for subscription events"""
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Webhook secret not configured")
+    
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    # Handle subscription events
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_email = session["metadata"].get("user_email")
+        tier = session["metadata"].get("tier")
+        subscription_id = session.get("subscription")
+        
+        if user_email and tier:
+            db_update_subscription(user_email, subscription_id, tier, "active")
+            print(f"✅ User {user_email} upgraded to {tier}")
+    
+    elif event["type"] == "customer.subscription.updated":
+        subscription = event["data"]["object"]
+        status = subscription["status"]
+        customer_id = subscription["customer"]
+        
+        # Update subscription status
+        with get_db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET subscription_status = %s WHERE stripe_customer_id = %s",
+                    (status, customer_id)
+                )
+    
+    elif event["type"] == "customer.subscription.deleted":
+        subscription = event["data"]["object"]
+        customer_id = subscription["customer"]
+        db_cancel_subscription(customer_id)
+        print(f"⚠️ Subscription cancelled for customer {customer_id}")
+    
+    elif event["type"] == "invoice.payment_failed":
+        invoice = event["data"]["object"]
+        customer_id = invoice["customer"]
+        
+        with get_db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET subscription_status = 'past_due' WHERE stripe_customer_id = %s",
+                    (customer_id,)
+                )
+        print(f"⚠️ Payment failed for customer {customer_id}")
+    
+    return {"status": "success"}
+
+
+@app.post("/api/cancel-subscription")
+async def cancel_subscription(user_data: dict = Depends(verify_token)):
+    """Cancel user's subscription at end of billing period"""
+    email = user_data.get("email")
+    user = db_get_user_by_email(email)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    subscription_id = user.get("stripe_subscription_id")
+    if not subscription_id:
+        raise HTTPException(status_code=400, detail="No active subscription")
+    
+    try:
+        stripe.Subscription.modify(
+            subscription_id,
+            cancel_at_period_end=True
+        )
+        return {"message": "Subscription will be cancelled at end of billing period"}
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/billing-portal")
+async def get_billing_portal(user_data: dict = Depends(verify_token)):
+    """Get Stripe Customer Portal URL for managing subscription"""
+    email = user_data.get("email")
+    user = db_get_user_by_email(email)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    customer_id = user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No billing account found")
+    
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=FRONTEND_URL
+        )
+        return {"portal_url": session.url}
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# -------- User Stats & History --------
 @app.get("/api/user/stats")
 async def get_user_stats(user_data: dict = Depends(verify_token)):
     email = user_data.get("email")
@@ -535,45 +825,26 @@ async def get_user_stats(user_data: dict = Depends(verify_token)):
 
 @app.get("/api/transcriptions/history")
 async def get_transcription_history(
-    limit: int = 10, user_data: dict = Depends(verify_token)
+    limit: int = 10, 
+    user_data: dict = Depends(verify_token)
 ):
     email = user_data.get("email")
     return db_get_transcription_history(email, limit=limit)
 
 
-@app.post("/api/user/upgrade")
-async def upgrade_tier(tier: str, user_data: dict = Depends(verify_token)):
-    email = user_data.get("email")
-
-    if tier not in TIER_LIMITS:
-        raise HTTPException(status_code=400, detail="Invalid tier")
-
-    user = db_get_user_by_email(email)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    db_update_user_tier(email, tier)
-
-    return {
-        "message": f"Upgraded to {tier}",
-        "tier": tier,
-        "new_limit": TIER_LIMITS[tier],
-    }
-
-
 # -------------------------------------------------
-# Dev entrypoint
+# Run server
 # -------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
 
     print("=" * 60)
-    print("🚀 TranscribeAI Backend")
+    print("🚀 Voxify API v2.0")
     print("=" * 60)
     print(f"📝 API Docs: http://localhost:{os.getenv('PORT', 8000)}/docs")
-    print(
-        f"🎙️ Whisper API: {WHISPER_API_URL if WHISPER_API_URL else '❌ Not configured'}"
-    )
+    print(f"💳 Stripe: {'✅ Configured' if stripe.api_key else '❌ Not configured'}")
+    print(f"🎙️ Whisper: {'✅ Configured' if WHISPER_API_URL else '❌ Not configured'}")
+    print(f"🗄️ Database: {'✅ Configured' if DATABASE_URL else '❌ Not configured'}")
     print("=" * 60)
 
     uvicorn.run(
