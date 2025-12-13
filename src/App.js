@@ -117,6 +117,14 @@ const VoxifyLogoSmall = ({ size = 32 }) => (
   </svg>
 );
 
+// PayPal Logo SVG Component
+const PayPalLogo = ({ className = "" }) => (
+  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .757-.629h6.608c2.19 0 3.944.658 4.945 1.853.904 1.078 1.245 2.541.957 4.117-.021.115-.047.23-.076.344-.024.093-.05.186-.078.278-.582 2.18-1.927 3.609-3.908 4.148-1.018.276-2.152.405-3.396.405h-.832a.77.77 0 0 0-.757.629l-.67 4.094-.203 1.373a.404.404 0 0 1-.4.351l.085.654z"/>
+    <path d="M19.238 8.264c-.024.093-.05.186-.078.278-.87 3.264-3.07 4.914-6.55 4.914h-1.66a.77.77 0 0 0-.757.629l-1.035 6.335a.516.516 0 0 0 .51.596h3.328a.641.641 0 0 0 .633-.54l.026-.137.502-3.074.032-.177a.641.641 0 0 1 .633-.54h.398c2.58 0 4.6-.958 5.191-3.732.247-1.161.12-2.13-.534-2.812-.196-.206-.44-.383-.72-.536.006-.068.041-.135.08-.204z" opacity="0.7"/>
+  </svg>
+);
+
 export default function AudioTranscriptionSaaS() {
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE VARIABLES
@@ -158,16 +166,45 @@ export default function AudioTranscriptionSaaS() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   
+  // PayPal state
+  const [paypalClientId, setPaypalClientId] = useState('');
+  const [showPayPalModal, setShowPayPalModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const languageDropdownRef = useRef(null);
+  const paypalButtonRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPER FUNCTIONS
   // ═══════════════════════════════════════════════════════════════════════════
   const getRemainingGuestAttempts = () => Math.max(0, FREE_GUEST_LIMIT - guestTranscriptionCount);
   const canGuestTranscribe = () => guestTranscriptionCount < FREE_GUEST_LIMIT;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAYPAL SDK LOADER
+  // ═══════════════════════════════════════════════════════════════════════════
+  const loadPayPalSDK = async (clientId) => {
+    if (window.paypal) {
+      setPaypalLoaded(true);
+      return;
+    }
+    
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription`;
+      script.async = true;
+      script.onload = () => {
+        setPaypalLoaded(true);
+        resolve();
+      };
+      script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+      document.body.appendChild(script);
+    });
+  };
 
   // ═══════════════════════════════════════════════════════════════════════════
   // INITIALIZATION & EFFECTS
@@ -177,11 +214,17 @@ export default function AudioTranscriptionSaaS() {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     const tier = urlParams.get('tier');
+    const subscriptionId = urlParams.get('subscription_id');
     
     if (paymentStatus === 'success' && tier) {
-      setSuccessMessage(`🎉 Successfully upgraded to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your new limits are now active.`);
-      setUserTier(tier);
-      setUsageMinutes(0);
+      // If coming back from PayPal with subscription_id, capture it
+      if (subscriptionId && authToken) {
+        capturePayPalSubscription(subscriptionId, tier);
+      } else {
+        setSuccessMessage(`🎉 Successfully upgraded to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your new limits are now active.`);
+        setUserTier(tier);
+        setUsageMinutes(0);
+      }
       window.history.replaceState({}, '', window.location.pathname);
       setCurrentPage('dashboard');
     } else if (paymentStatus === 'cancelled') {
@@ -222,7 +265,53 @@ export default function AudioTranscriptionSaaS() {
     } else {
       storage.set('voxify_guest_count', '0');
     }
+
+    // Fetch PayPal config
+    fetchPayPalConfig();
   }, []);
+
+  // Fetch PayPal configuration
+  const fetchPayPalConfig = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/paypal/config`);
+      if (response.ok) {
+        const data = await response.json();
+        setPaypalClientId(data.client_id);
+        // Pre-load PayPal SDK
+        if (data.client_id) {
+          loadPayPalSDK(data.client_id).catch(console.error);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch PayPal config:', err);
+    }
+  };
+
+  // Capture PayPal subscription after approval
+  const capturePayPalSubscription = async (subscriptionId, tier) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/capture-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ subscription_id: subscriptionId, tier })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setSuccessMessage(`🎉 Successfully upgraded to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your new limits are now active.`);
+        setUserTier(tier);
+        setUsageMinutes(0);
+      } else {
+        setError(data.detail || 'Failed to activate subscription');
+      }
+    } catch (err) {
+      setError('Failed to activate subscription. Please contact support.');
+    }
+  };
 
   // Close language dropdown when clicking outside
   useEffect(() => {
@@ -254,6 +343,100 @@ export default function AudioTranscriptionSaaS() {
   useEffect(() => {
     storage.set('voxify_guest_count', guestTranscriptionCount.toString());
   }, [guestTranscriptionCount]);
+
+  // Render PayPal buttons when modal opens
+  useEffect(() => {
+    if (showPayPalModal && selectedPlan && paypalLoaded && window.paypal && paypalButtonRef.current) {
+      // Clear existing buttons
+      paypalButtonRef.current.innerHTML = '';
+      
+      window.paypal.Buttons({
+        style: {
+          shape: 'pill',
+          color: 'gold',
+          layout: 'vertical',
+          label: 'subscribe'
+        },
+        createSubscription: async (data, actions) => {
+          try {
+            // Get plan ID from backend
+            const response = await fetch(`${API_BASE_URL}/api/create-subscription`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: JSON.stringify({ tier: selectedPlan.tier })
+            });
+            
+            const planData = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(planData.detail || 'Failed to get plan');
+            }
+            
+            return actions.subscription.create({
+              plan_id: planData.plan_id,
+              application_context: {
+                brand_name: 'Voxify',
+                shipping_preference: 'NO_SHIPPING',
+                user_action: 'SUBSCRIBE_NOW',
+                return_url: `${window.location.origin}?payment=success&tier=${selectedPlan.tier}`,
+                cancel_url: `${window.location.origin}?payment=cancelled`
+              }
+            });
+          } catch (err) {
+            setError(err.message);
+            return null;
+          }
+        },
+        onApprove: async (data, actions) => {
+          setShowPayPalModal(false);
+          setIsUpgrading(true);
+          
+          try {
+            // Capture subscription
+            const response = await fetch(`${API_BASE_URL}/api/capture-subscription`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: JSON.stringify({ 
+                subscription_id: data.subscriptionID, 
+                tier: selectedPlan.tier 
+              })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+              setSuccessMessage(`🎉 Successfully upgraded to ${selectedPlan.name}! Your new limits are now active.`);
+              setUserTier(selectedPlan.tier);
+              setUsageMinutes(0);
+            } else {
+              setError(result.detail || 'Failed to activate subscription');
+            }
+          } catch (err) {
+            setError('Failed to activate subscription. Please contact support.');
+          } finally {
+            setIsUpgrading(false);
+            setSelectedPlan(null);
+          }
+        },
+        onCancel: () => {
+          setShowPayPalModal(false);
+          setSelectedPlan(null);
+        },
+        onError: (err) => {
+          console.error('PayPal error:', err);
+          setError('Payment failed. Please try again.');
+          setShowPayPalModal(false);
+          setSelectedPlan(null);
+        }
+      }).render(paypalButtonRef.current);
+    }
+  }, [showPayPalModal, selectedPlan, paypalLoaded, authToken]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AUTHENTICATION
@@ -470,7 +653,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STRIPE PAYMENTS
+  // PAYPAL PAYMENTS
   // ═══════════════════════════════════════════════════════════════════════════
   const handleUpgrade = async (tier) => {
     if (!isLoggedIn) {
@@ -481,48 +664,41 @@ export default function AudioTranscriptionSaaS() {
 
     if (tier === 'free' || tier === userTier) return;
 
-    setIsUpgrading(true);
-    setError('');
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ tier })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.checkout_url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.checkout_url;
-      } else {
-        setError(data.detail || 'Failed to create checkout session. Please try again.');
-      }
-    } catch (err) {
-      setError('Payment service unavailable. Please try again later.');
-    } finally {
-      setIsUpgrading(false);
+    if (!paypalClientId) {
+      setError('Payment system not available. Please try again later.');
+      return;
     }
+
+    // Set selected plan and show PayPal modal
+    const planDetails = {
+      starter: { tier: 'starter', name: 'Starter', price: 9, minutes: 300 },
+      pro: { tier: 'pro', name: 'Pro', price: 29, minutes: 1000 },
+      enterprise: { tier: 'enterprise', name: 'Enterprise', price: 99, minutes: 10000 }
+    };
+
+    setSelectedPlan(planDetails[tier]);
+    setShowPayPalModal(true);
   };
 
-  const openBillingPortal = async () => {
+  const cancelSubscription = async () => {
+    if (!window.confirm('Are you sure you want to cancel your subscription?')) return;
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/billing-portal`, {
+      const response = await fetch(`${API_BASE_URL}/api/cancel-subscription`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       
       const data = await response.json();
-      if (data.portal_url) {
-        window.open(data.portal_url, '_blank');
+      
+      if (response.ok) {
+        setSuccessMessage('Subscription cancelled successfully');
+        setUserTier('free');
       } else {
-        setError('Could not open billing portal');
+        setError(data.detail || 'Failed to cancel subscription');
       }
     } catch (err) {
-      setError('Could not open billing portal');
+      setError('Failed to cancel subscription');
     }
   };
 
@@ -637,6 +813,63 @@ export default function AudioTranscriptionSaaS() {
                   Continue as guest ({remainingAttempts} free left)
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAYPAL MODAL
+  // ═══════════════════════════════════════════════════════════════════════════
+  const renderPayPalModal = () => {
+    if (!showPayPalModal || !selectedPlan) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+        <div className="relative w-full max-w-md animate-fadeIn">
+          <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <button onClick={() => { setShowPayPalModal(false); setSelectedPlan(null); }} className="absolute top-4 right-4 z-10 p-2 hover:bg-slate-100 rounded-full">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+            
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 px-8 py-10 text-center">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <PayPalLogo className="text-blue-600 w-10 h-10" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Complete Your Purchase</h2>
+              <p className="text-blue-100 mt-2">Subscribe to {selectedPlan.name}</p>
+            </div>
+
+            <div className="px-8 py-8">
+              {/* Plan Summary */}
+              <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold text-slate-900">{selectedPlan.name} Plan</p>
+                    <p className="text-sm text-slate-500">{selectedPlan.minutes} minutes/month</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-slate-900">${selectedPlan.price}</p>
+                    <p className="text-sm text-slate-500">/month</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* PayPal Buttons Container */}
+              <div ref={paypalButtonRef} className="min-h-[150px] flex items-center justify-center">
+                {!paypalLoaded && (
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading PayPal...</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-500 text-center mt-4">
+                Secure payment powered by PayPal. Cancel anytime.
+              </p>
             </div>
           </div>
         </div>
@@ -817,9 +1050,9 @@ export default function AudioTranscriptionSaaS() {
         </div>
 
         {userTier !== 'free' && (
-          <button onClick={openBillingPortal}
-            className="mt-6 w-full py-3 border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 flex items-center justify-center gap-2">
-            <ExternalLink className="w-4 h-4" /> Manage Subscription
+          <button onClick={cancelSubscription}
+            className="mt-6 w-full py-3 border border-red-200 rounded-xl text-red-600 font-medium hover:bg-red-50 flex items-center justify-center gap-2">
+            Cancel Subscription
           </button>
         )}
       </div>
@@ -861,10 +1094,14 @@ export default function AudioTranscriptionSaaS() {
                 className={`w-full py-2.5 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
                   userTier === plan.tier 
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : userTier === plan.tier ? 'Current Plan' : 'Upgrade Now'}
+                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : userTier === plan.tier ? 'Current Plan' : (
+                  <>
+                    <PayPalLogo className="w-4 h-4" /> Pay with PayPal
+                  </>
+                )}
               </button>
             </div>
           ))}
@@ -1198,9 +1435,13 @@ export default function AudioTranscriptionSaaS() {
               }}
                 disabled={isUpgrading}
                 className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                  plan.popular ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-900 text-white hover:bg-slate-800'
+                  plan.popular ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-900 text-white hover:bg-slate-800'
                 }`}>
-                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : plan.tier === 'free' ? 'Get Started' : 'Subscribe'}
+                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : plan.tier === 'free' ? 'Get Started' : (
+                  <>
+                    <PayPalLogo className="w-4 h-4" /> Subscribe
+                  </>
+                )}
               </button>
             </div>
           ))}
@@ -1223,6 +1464,7 @@ export default function AudioTranscriptionSaaS() {
       `}</style>
       
       {renderAuthModal()}
+      {renderPayPalModal()}
       <Navigation />
       
       {isLoggedIn ? (
