@@ -4,7 +4,7 @@ import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Za
 // ═══════════════════════════════════════════════════════════════════════════
 // API CONFIGURATION - Change this to your backend URL
 // ═══════════════════════════════════════════════════════════════════════════
-const API_BASE_URL = 'https://transcribe-backend-f6o6.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOCAL STORAGE HELPERS
