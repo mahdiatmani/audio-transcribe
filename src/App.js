@@ -1318,49 +1318,6 @@ export default function AudioTranscriptionSaaS() {
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PRICING PAGE
-  // ═══════════════════════════════════════════════════════════════════════════
-  const PricingPage = () => (
-    <div className="min-h-screen bg-slate-50 pt-24">
-      <div className="max-w-7xl mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-slate-900 mb-4">Simple Pricing</h1>
-          <p className="text-lg text-slate-600">Choose the plan that fits your needs</p>
-        </div>
-        <div className="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
-          {[
-            { tier: 'free', name: 'Free', price: 0, minutes: 15, features: ['15 min/day', 'Limited languages', 'Basic support'] },
-            { tier: 'starter', name: 'Starter', price: 9, minutes: 300, features: ['300 min/month', 'All languages', 'Priority support', 'API access'] },
-            { tier: 'pro', name: 'Pro', price: 29, minutes: 1000, features: ['1,000 min/month', 'All languages', '24/7 support', 'Speaker detection'], popular: true },
-            { tier: 'enterprise', name: 'Enterprise', price: 99, minutes: 10000, features: ['10,000 min/month', 'All languages', 'Dedicated support', 'Custom solutions'] }
-          ].map((plan) => (
-            <div key={plan.tier} className={`relative bg-white p-6 rounded-2xl border-2 transition-all ${plan.popular ? 'border-emerald-500 shadow-xl scale-105' : 'border-slate-200'}`}>
-              {plan.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-xs font-bold px-4 py-1 rounded-full">POPULAR</span>}
-              <h3 className="text-lg font-semibold text-slate-900">{plan.name}</h3>
-              <div className="mt-4 mb-6">
-                <span className="text-4xl font-bold">${plan.price}</span>
-                <span className="text-slate-500">/month</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {plan.features.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />{f}
-                  </li>
-                ))}
-              </ul>
-              <button onClick={() => { if (plan.tier === 'free') { setShowAuthModal(true); setAuthMode('signup'); } else { handleUpgrade(plan.tier); }}}
-                disabled={isUpgrading}
-                className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${plan.popular ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
-                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin" /> : plan.tier === 'free' ? 'Get Started' : <><PayPalLogo className="w-4 h-4" /> Subscribe</>}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
