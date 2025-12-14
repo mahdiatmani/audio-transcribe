@@ -52,6 +52,30 @@ const LANGUAGES = {
   "no": "Norwegian",
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TRANSCRIPTION MODES - NEW!
+// ═══════════════════════════════════════════════════════════════════════════
+const TRANSCRIPTION_MODES = {
+  fast: {
+    id: 'fast',
+    name: 'Fast Mode',
+    icon: '⚡',
+    description: 'Quick results with good accuracy',
+    model: 'Whisper Turbo (Quantized)',
+    speed: '~2x faster',
+    details: 'Uses quantized model for faster processing. Best for quick drafts and clear audio.'
+  },
+  quality: {
+    id: 'quality', 
+    name: 'Quality Mode',
+    icon: '🎯',
+    description: 'Best accuracy, takes longer',
+    model: 'Whisper Large v3',
+    speed: 'Standard speed',
+    details: 'Uses full precision model for maximum accuracy. Best for professional transcriptions.'
+  }
+};
+
 // Custom Voxify Logo Component
 const VoxifyLogo = ({ size = 40 }) => (
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
@@ -162,6 +186,11 @@ export default function AudioTranscriptionSaaS() {
   const [selectedLanguage, setSelectedLanguage] = useState('auto');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   
+  // MODE SELECTION - NEW!
+  const [selectedMode, setSelectedMode] = useState('fast');
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [transcribedMode, setTranscribedMode] = useState(''); // Track which mode was used
+  
   // Guest state
   const [guestTranscriptionCount, setGuestTranscriptionCount] = useState(0);
   const [isGuestMode, setIsGuestMode] = useState(false);
@@ -182,6 +211,7 @@ export default function AudioTranscriptionSaaS() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const languageDropdownRef = useRef(null);
+  const modeDropdownRef = useRef(null); // NEW!
   const paypalButtonRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -358,6 +388,17 @@ export default function AudioTranscriptionSaaS() {
     const handleClickOutside = (event) => {
       if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target)) {
         setShowLanguageDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close mode dropdown when clicking outside - NEW!
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target)) {
+        setShowModeDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -555,7 +596,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // TRANSCRIPTION
+  // TRANSCRIPTION - WITH MODE SUPPORT!
   // ═══════════════════════════════════════════════════════════════════════════
   const transcribeAudio = async () => {
     if (!file) {
@@ -582,11 +623,13 @@ export default function AudioTranscriptionSaaS() {
     setError('');
     setTranscription('');
     setDetectedLanguage('');
+    setTranscribedMode(''); // Reset
 
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('language', selectedLanguage);
+      formData.append('mode', selectedMode); // NEW - Send mode to backend!
 
       const headers = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -602,6 +645,7 @@ export default function AudioTranscriptionSaaS() {
       if (response.ok && data.success) {
         setTranscription(data.transcription);
         setDetectedLanguage(data.language || selectedLanguage);
+        setTranscribedMode(data.mode || selectedMode); // NEW - Track which mode was used
         
         if (isLoggedIn) {
           setTranscriptionCount(prev => prev + 1);
@@ -689,6 +733,66 @@ export default function AudioTranscriptionSaaS() {
     } catch (err) {
       setError('Failed to cancel subscription');
     }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODE SELECTOR COMPONENT - NEW!
+  // ═══════════════════════════════════════════════════════════════════════════
+  const ModeSelector = () => {
+    const currentMode = TRANSCRIPTION_MODES[selectedMode];
+    
+    return (
+      <div className="relative" ref={modeDropdownRef}>
+        <button
+          onClick={() => setShowModeDropdown(!showModeDropdown)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 rounded-xl text-slate-700 font-medium transition-all border border-slate-200"
+        >
+          <span className="text-lg">{currentMode.icon}</span>
+          <span>{currentMode.name}</span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {showModeDropdown && (
+          <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
+            {Object.values(TRANSCRIPTION_MODES).map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => {
+                  setSelectedMode(mode.id);
+                  setShowModeDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors ${
+                  selectedMode === mode.id ? 'bg-emerald-50' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{mode.icon}</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900">{mode.name}</p>
+                        {selectedMode === mode.id && (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-600 mt-0.5">{mode.description}</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-slate-500">
+                          <span className="font-medium">Model:</span> {mode.model}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          <span className="font-medium">Speed:</span> {mode.speed}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -869,7 +973,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // TRANSCRIBE SECTION
+  // TRANSCRIBE SECTION - WITH MODE INFO!
   // ═══════════════════════════════════════════════════════════════════════════
   const TranscribeSection = ({ isGuest = false }) => {
     const remaining = isGuest ? getRemainingGuestAttempts() : TIER_LIMITS[userTier] - usageMinutes;
@@ -887,8 +991,27 @@ export default function AudioTranscriptionSaaS() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-slate-900">Upload Audio</h2>
-            <LanguageSelector />
+            <div className="flex items-center gap-3">
+              <ModeSelector />
+              <LanguageSelector />
+            </div>
           </div>
+          
+          {/* Mode info banner - NEW! */}
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{TRANSCRIPTION_MODES[selectedMode].icon}</span>
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  {TRANSCRIPTION_MODES[selectedMode].name}
+                </p>
+                <p className="text-xs text-slate-600">
+                  {TRANSCRIPTION_MODES[selectedMode].details}
+                </p>
+              </div>
+            </div>
+          </div>
+          
           <div
             onClick={() => !isLimitReached && fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${
@@ -956,7 +1079,22 @@ export default function AudioTranscriptionSaaS() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Transcription</h2>
-                {detectedLanguage && <p className="text-sm text-slate-500">Language: {LANGUAGES[detectedLanguage] || detectedLanguage}</p>}
+                {/* Mode indicator in results - NEW! */}
+                <div className="flex items-center gap-3 mt-1">
+                  {detectedLanguage && (
+                    <p className="text-sm text-slate-500">
+                      Language: {LANGUAGES[detectedLanguage] || detectedLanguage}
+                    </p>
+                  )}
+                  {transcribedMode && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <p className="text-sm text-slate-500 flex items-center gap-1">
+                        {TRANSCRIPTION_MODES[transcribedMode].icon} {TRANSCRIPTION_MODES[transcribedMode].name}
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
               <button onClick={downloadTranscription} className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium">
                 <Download className="w-5 h-5" /> Download
@@ -1267,14 +1405,14 @@ export default function AudioTranscriptionSaaS() {
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50/50 to-transparent"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-700 text-sm font-medium mb-8">
-            <Sparkles className="w-4 h-4" /> AI-Powered • 30+ Languages
+            <Sparkles className="w-4 h-4" /> AI-Powered • 30+ Languages • Dual Mode
           </div>
           <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6">
             Transform audio into<br />
             <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">perfect text</span>
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-10">
-            Professional transcription in seconds. Support for 30+ languages with automatic detection.
+            Professional transcription in seconds. Choose between Fast mode for quick results or Quality mode for maximum accuracy.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button onClick={() => { setShowAuthModal(true); setAuthMode('signup'); }}
@@ -1290,9 +1428,9 @@ export default function AudioTranscriptionSaaS() {
       </section>
       <section className="py-12 border-y border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center gap-8 md:gap-16">
+          <div className="flex items-center gap-2 text-slate-500"><Zap className="w-5 h-5" /><span className="text-sm font-medium">Fast Mode</span></div>
+          <div className="flex items-center gap-2 text-slate-500"><Shield className="w-5 h-5" /><span className="text-sm font-medium">Quality Mode</span></div>
           <div className="flex items-center gap-2 text-slate-500"><Languages className="w-5 h-5" /><span className="text-sm font-medium">30+ Languages</span></div>
-          <div className="flex items-center gap-2 text-slate-500"><Shield className="w-5 h-5" /><span className="text-sm font-medium">Secure</span></div>
-          <div className="flex items-center gap-2 text-slate-500"><Zap className="w-5 h-5" /><span className="text-sm font-medium">Lightning Fast</span></div>
           <div className="flex items-center gap-1 text-amber-500">
             {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
             <span className="text-sm font-medium text-slate-600 ml-1">4.9/5</span>
@@ -1316,6 +1454,8 @@ export default function AudioTranscriptionSaaS() {
       </footer>
     </div>
   );
+
+  const PricingPage = () => <div className="min-h-screen bg-slate-50 pt-16"><div className="max-w-4xl mx-auto px-4 py-16 text-center"><h1 className="text-4xl font-bold mb-4">Pricing</h1><p className="text-slate-600">Coming soon...</p></div></div>;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
