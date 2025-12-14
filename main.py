@@ -180,7 +180,10 @@ def get_audio_duration_seconds(audio_bytes: bytes, filename: str) -> int:
     """Accurately calculate audio duration in seconds using pydub"""
     try:
         file_ext = filename.lower().split('.')[-1]
-        format_map = {'mp3': 'mp3', 'wav': 'wav', 'webm': 'webm', 'ogg': 'ogg', 'm4a': 'mp4', 'aac': 'aac', 'flac': 'flac'}
+        format_map = {
+            'mp3': 'mp3', 'wav': 'wav', 'webm': 'webm', 'ogg': 'ogg',
+            'm4a': 'mp4', 'aac': 'aac', 'flac': 'flac'
+        }
         audio_format = format_map.get(file_ext, 'mp3')
         
         audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format=audio_format)
@@ -229,6 +232,110 @@ def check_and_reset_quota(user: Dict[str, Any]) -> None:
                     """,
                     (next_reset, user['email'])
                 )
+
+# -------------------------------------------------
+# PayPal Helper Functions
+# -------------------------------------------------
+def get_paypal_access_token() -> str:
+    """Get PayPal OAuth access token"""
+    if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
+        raise HTTPException(status_code=500, detail="PayPal not configured")
+    
+    auth = base64.b64encode(f"{PAYPAL_CLIENT_ID}:{PAYPAL_CLIENT_SECRET}".encode()).decode()
+    
+    response = requests.post(
+        f"{PAYPAL_API_BASE}/v1/oauth2/token",
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data="grant_type=client_credentials"
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to get PayPal access token")
+    
+    return response.json()["access_token"]
+
+def get_paypal_subscription(subscription_id: str) -> dict:
+    """Get subscription details from PayPal"""
+    access_token = get_paypal_access_token()
+    
+    response = requests.get(
+        f"{PAYPAL_API_BASE}/v1/billing/subscriptions/{subscription_id}",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get subscription details")
+    
+    return response.json()
+
+def cancel_paypal_subscription(subscription_id: str, reason: str = "User requested cancellation") -> bool:
+    """Cancel a PayPal subscription"""
+    access_token = get_paypal_access_token()
+    
+    response = requests.post(
+        f"{PAYPAL_API_BASE}/v1/billing/subscriptions/{subscription_id}/cancel",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        },
+        json={"reason": reason}
+    )
+    
+    return response.status_code == 204
+
+# -------------------------------------------------
+# Whisper Transcription
+# -------------------------------------------------
+def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> dict:
+    """
+    Transcribe using self-hosted Whisper API
+    """
+    if not WHISPER_API_URL:
+        return {
+            "transcription": "⚠️ Whisper API not configured",
+            "language": "unknown",
+            "success": False
+        }
+    
+    try:
+        files = {"file": (filename, audio_bytes, "audio/mpeg")}
+        data = {}
+        if language and language != "auto":
+            data["language"] = language
+        
+        response = requests.post(
+            WHISPER_API_URL, 
+            files=files, 
+            data=data,
+            timeout=120
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            return {
+                "transcription": result.get("transcription", ""),
+                "language": result.get("language", "detected"),
+                "success": True
+            }
+        else:
+            return {
+                "transcription": f"⚠️ Service error. Status: {response.status_code}",
+                "language": "unknown",
+                "success": False
+            }
+    except Exception as e:
+        print(f"Transcription error: {str(e)}")
+        return {
+            "transcription": "⚠️ Transcription failed. Please try again.",
+            "language": "unknown",
+            "success": False
+        }
 
 # -------------------------------------------------
 # DB helper functions
@@ -435,6 +542,7 @@ async def root():
         "version": "2.1.0",
         "status": "operational",
         "quota_policy": "Free tier resets daily. Paid tiers reset monthly.",
+        "supported_languages": list(SUPPORTED_LANGUAGES.keys())
     }
 
 @app.get("/health")
@@ -462,7 +570,14 @@ async def signup(user: UserCreate):
     
     return {
         "token": token,
-        "user": new_user,
+        "user": {
+            "email": new_user["email"],
+            "username": new_user["username"],
+            "tier": new_user["tier"],
+            "usage_seconds": new_user["usage_seconds"],
+            "usage_minutes": minutes_to_display(new_user["usage_seconds"]),
+            "transcription_count": new_user["transcription_count"],
+        },
     }
 
 @app.post("/auth/login")
@@ -487,6 +602,7 @@ async def login(user: UserLogin):
             "tier": db_user["tier"],
             "usage_seconds": db_user["usage_seconds"],
             "usage_minutes": minutes_to_display(db_user["usage_seconds"]),
+            "transcription_count": db_user["transcription_count"],
         },
     }
 
@@ -511,6 +627,7 @@ async def get_current_user(user_data: dict = Depends(verify_token)):
         "usage_minutes": minutes_to_display(user["usage_seconds"]),
         "transcription_count": user["transcription_count"],
         "limit_minutes": limit_min,
+        "limit_seconds": limit_sec,
         "remaining_seconds": max(0, limit_sec - user["usage_seconds"]),
         "subscription_status": user.get("subscription_status", "inactive"),
     }
@@ -540,7 +657,7 @@ async def transcribe_audio(
         if language not in ALLOWED_FREE_LANGUAGES:
             raise HTTPException(
                 status_code=403, 
-                detail=f"Language '{language}' is locked for Free Tier/Guests. Please upgrade to Pro."
+                detail=f"Language '{language}' is locked for Free Tier/Guests. Supported: {', '.join(ALLOWED_FREE_LANGUAGES)}. Please upgrade."
             )
 
     # 4. ENFORCE QUOTA (Registered Users)
@@ -556,27 +673,10 @@ async def transcribe_audio(
 
     # 5. TRANSCRIBE
     try:
-        if not WHISPER_API_URL:
-            # Mock response if no API configured
-            return {
-                "success": False, 
-                "transcription": "Whisper API URL not configured in backend.",
-                "language": "error"
-            }
+        result = transcribe_with_whisper(audio_bytes, file.filename, language)
 
-        files = {"file": (file.filename, audio_bytes, "audio/mpeg")}
-        data = {}
-        if language and language != "auto":
-            data["language"] = language
-        
-        response = requests.post(WHISPER_API_URL, files=files, data=data, timeout=120)
-
-        if response.status_code != 200:
-             raise HTTPException(status_code=400, detail="Transcription failed upstream")
-            
-        result = response.json()
-        transcript_text = result.get("transcription", "")
-        detected_lang = result.get("language", language)
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["transcription"])
         
         # 6. SAVE & UPDATE USAGE (If User)
         if user:
@@ -584,16 +684,18 @@ async def transcribe_audio(
             db_insert_transcription(
                 user_id=user["id"],
                 filename=file.filename,
-                transcription=transcript_text,
+                transcription=result["transcription"],
                 duration_seconds=duration_seconds,
-                language=detected_lang
+                language=result["language"]
             )
             updated_user = db_get_user_by_email(user["email"])
+            tier_limit_min = TIER_LIMITS.get(updated_user["tier"], 15)
+            tier_limit_sec = tier_limit_min * 60
             
             return {
                 "success": True,
-                "transcription": transcript_text,
-                "language": detected_lang,
+                "transcription": result["transcription"],
+                "language": result["language"],
                 "duration_seconds": duration_seconds,
                 "duration_minutes": minutes_to_display(duration_seconds),
                 "filename": file.filename,
@@ -606,8 +708,8 @@ async def transcribe_audio(
             # Guest Response
             return {
                 "success": True,
-                "transcription": transcript_text,
-                "language": detected_lang,
+                "transcription": result["transcription"],
+                "language": result["language"],
                 "duration_seconds": duration_seconds,
                 "guest": True,
             }
@@ -617,7 +719,7 @@ async def transcribe_audio(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# -------- PayPal Payment Endpoints (Restored) --------
+# -------- PayPal Payment Endpoints --------
 @app.get("/api/paypal/config")
 async def get_paypal_config():
     if not PAYPAL_CLIENT_ID:
@@ -644,23 +746,88 @@ async def capture_subscription(request: PayPalCaptureRequest, user_data: dict = 
     user = db_get_user_by_email(email)
     if not user: raise HTTPException(status_code=404)
     
-    # In a real app, verify subscription with PayPal API here using get_paypal_subscription helper
-    # For now, we trust the ID and update DB
-    
-    db_update_paypal_subscription(
-        email=email,
-        subscription_id=request.subscription_id,
-        payer_id="PAYER_ID_PLACEHOLDER", # You would get this from PayPal API
-        tier=request.tier,
-        status="active"
-    )
-    return {"success": True, "tier": request.tier}
+    try:
+        # Verify with PayPal
+        subscription = get_paypal_subscription(request.subscription_id)
+        if subscription["status"] not in ["ACTIVE", "APPROVED"]:
+             raise HTTPException(status_code=400, detail="Subscription not active")
+
+        payer_id = subscription.get("subscriber", {}).get("payer_id", "")
+        
+        db_update_paypal_subscription(
+            email=email,
+            subscription_id=request.subscription_id,
+            payer_id=payer_id,
+            tier=request.tier,
+            status="active"
+        )
+        return {"success": True, "tier": request.tier}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/webhook/paypal")
+async def paypal_webhook(request: Request):
+    """Handle PayPal webhooks"""
+    try:
+        body = await request.json()
+        event_type = body.get("event_type", "")
+        resource = body.get("resource", {})
+        
+        print(f"📨 PayPal webhook: {event_type}")
+        
+        if event_type == "BILLING.SUBSCRIPTION.CANCELLED":
+            subscription_id = resource.get("id")
+            with get_db_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT email FROM users WHERE paypal_subscription_id = %s",
+                        (subscription_id,)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        db_cancel_subscription(row[0])
+                        
+        elif event_type == "BILLING.SUBSCRIPTION.SUSPENDED":
+            subscription_id = resource.get("id")
+            with get_db_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """UPDATE users SET subscription_status = 'suspended' 
+                           WHERE paypal_subscription_id = %s""",
+                        (subscription_id,)
+                    )
+        
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Webhook error: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/cancel-subscription")
 async def cancel_subscription_endpoint(user_data: dict = Depends(verify_token)):
     email = user_data.get("email")
+    user = db_get_user_by_email(email)
+    if not user: raise HTTPException(status_code=404)
+    
+    sub_id = user.get("paypal_subscription_id")
+    if sub_id:
+        try:
+            cancel_paypal_subscription(sub_id)
+        except:
+            pass # Proceed to cancel locally even if PayPal API fails
+            
     db_cancel_subscription(email)
     return {"message": "Subscription cancelled"}
+
+@app.get("/api/subscription-status")
+async def get_subscription_status(user_data: dict = Depends(verify_token)):
+    email = user_data.get("email")
+    user = db_get_user_by_email(email)
+    return {
+        "tier": user["tier"],
+        "subscription_status": user.get("subscription_status", "inactive"),
+        "has_subscription": bool(user.get("paypal_subscription_id"))
+    }
 
 # -------- User Stats & History --------
 @app.get("/api/user/stats")
@@ -678,6 +845,7 @@ async def get_transcription_history(limit: int = 10, user_data: dict = Depends(v
 # -------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
+    print("🚀 Voxify API v2.1.0")
     uvicorn.run(
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),
