@@ -290,24 +290,34 @@ def cancel_paypal_subscription(subscription_id: str, reason: str = "User request
     return response.status_code == 204
 
 # -------------------------------------------------
-# Whisper Transcription
+# Whisper Transcription - UPDATED WITH MODE SUPPORT
 # -------------------------------------------------
 def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto", mode: str = "fast") -> dict:
     """
-    Transcribe using self-hosted Whisper API (supports 'fast' vs 'quality' mode)
+    Transcribe using self-hosted Whisper API with mode selection
+    
+    Args:
+        audio_bytes: Audio file bytes
+        filename: Original filename
+        language: Language code or "auto"
+        mode: "fast" or "quality" (NEW!)
+    
+    Returns:
+        dict with transcription, language, success, mode
     """
     if not WHISPER_API_URL:
         return {
             "transcription": "⚠️ Whisper API not configured",
             "language": "unknown",
-            "success": False
+            "success": False,
+            "mode": mode
         }
     
     try:
         files = {"file": (filename, audio_bytes, "audio/mpeg")}
         
         # Build payload with mode and language
-        data = {"mode": mode}
+        data = {"mode": mode}  # Pass mode to Whisper API
         if language and language != "auto":
             data["language"] = language
         
@@ -323,20 +333,23 @@ def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "
             return {
                 "transcription": result.get("transcription", ""),
                 "language": result.get("language", "detected"),
-                "success": True
+                "success": True,
+                "mode": mode
             }
         else:
             return {
                 "transcription": f"⚠️ Service error. Status: {response.status_code}",
                 "language": "unknown",
-                "success": False
+                "success": False,
+                "mode": mode
             }
     except Exception as e:
         print(f"Transcription error: {str(e)}")
         return {
             "transcription": "⚠️ Transcription failed. Please try again.",
             "language": "unknown",
-            "success": False
+            "success": False,
+            "mode": mode
         }
 
 # -------------------------------------------------
@@ -544,7 +557,8 @@ async def root():
         "version": "2.2.0",
         "status": "operational",
         "quota_policy": "Free tier resets daily. Paid tiers reset monthly.",
-        "supported_languages": list(SUPPORTED_LANGUAGES.keys())
+        "supported_languages": list(SUPPORTED_LANGUAGES.keys()),
+        "modes": ["fast", "quality"]  # NEW!
     }
 
 @app.get("/health")
@@ -634,14 +648,23 @@ async def get_current_user(user_data: dict = Depends(verify_token)):
         "subscription_status": user.get("subscription_status", "inactive"),
     }
 
-# -------- Transcription Endpoint --------
+# -------- Transcription Endpoint - WITH MODE SUPPORT --------
 @app.post("/api/transcribe")
 async def transcribe_audio(
     file: UploadFile = File(...),
     language: str = Form("auto"),
-    mode: str = Form("fast"),  # New mode parameter
+    mode: str = Form("fast"),  # NEW PARAMETER - "fast" or "quality"
     user_data: Optional[dict] = Depends(optional_verify_token),
 ):
+    """
+    Transcribe audio with mode selection
+    
+    Args:
+        file: Audio file
+        language: Language code
+        mode: "fast" for quick results, "quality" for best accuracy
+    """
+    
     # 1. READ FILE & DURATION
     audio_bytes = await file.read()
     duration_seconds = get_audio_duration_seconds(audio_bytes, file.filename)
@@ -674,9 +697,9 @@ async def transcribe_audio(
                 detail=f"Quota exceeded. You need {minutes_to_display(duration_seconds)} mins, but have {minutes_to_display(max(0, tier_limit_sec - user['usage_seconds']))} mins left today."
             )
 
-    # 5. TRANSCRIBE
+    # 5. TRANSCRIBE WITH MODE
     try:
-        # Pass the 'mode' parameter to the helper
+        # Pass the 'mode' parameter to Whisper API
         result = transcribe_with_whisper(audio_bytes, file.filename, language, mode)
 
         if not result["success"]:
@@ -700,6 +723,7 @@ async def transcribe_audio(
                 "success": True,
                 "transcription": result["transcription"],
                 "language": result["language"],
+                "mode": mode,  # Include mode in response
                 "duration_seconds": duration_seconds,
                 "duration_minutes": minutes_to_display(duration_seconds),
                 "filename": file.filename,
@@ -714,6 +738,7 @@ async def transcribe_audio(
                 "success": True,
                 "transcription": result["transcription"],
                 "language": result["language"],
+                "mode": mode,  # Include mode in response
                 "duration_seconds": duration_seconds,
                 "guest": True,
             }
@@ -849,7 +874,8 @@ async def get_transcription_history(limit: int = 10, user_data: dict = Depends(v
 # -------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Voxify API v2.2.0")
+    print("🚀 Voxify API v2.2.0 - Dual Mode Support")
+    print("   Modes: fast (quantized) | quality (full precision)")
     uvicorn.run(
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),
