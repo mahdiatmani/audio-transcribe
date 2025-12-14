@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Mic, FileAudio, Download, Loader2, CheckCircle, AlertCircle, Zap, LogOut, User, Lock, Clock, History, ChevronRight, ChevronDown, Menu, X, ArrowRight, Sparkles, Languages, Play, Shield, Star } from 'lucide-react';
 
+// Audio Components
+import AudioRecorder from './components/AudioRecorder';
+import AudioFileDisplay from './components/AudioFileDisplay';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // API CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════
@@ -53,7 +57,7 @@ const LANGUAGES = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TRANSCRIPTION MODES - NEW!
+// TRANSCRIPTION MODES
 // ═══════════════════════════════════════════════════════════════════════════
 const TRANSCRIPTION_MODES = {
   fast: {
@@ -169,7 +173,6 @@ export default function AudioTranscriptionSaaS() {
   const [authToken, setAuthToken] = useState('');
   
   const [file, setFile] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [detectedLanguage, setDetectedLanguage] = useState('');
@@ -186,10 +189,10 @@ export default function AudioTranscriptionSaaS() {
   const [selectedLanguage, setSelectedLanguage] = useState('auto');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   
-  // MODE SELECTION - NEW!
+  // MODE SELECTION
   const [selectedMode, setSelectedMode] = useState('fast');
   const [showModeDropdown, setShowModeDropdown] = useState(false);
-  const [transcribedMode, setTranscribedMode] = useState(''); // Track which mode was used
+  const [transcribedMode, setTranscribedMode] = useState('');
   
   // Guest state
   const [guestTranscriptionCount, setGuestTranscriptionCount] = useState(0);
@@ -208,10 +211,8 @@ export default function AudioTranscriptionSaaS() {
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   
   const fileInputRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
   const languageDropdownRef = useRef(null);
-  const modeDropdownRef = useRef(null); // NEW!
+  const modeDropdownRef = useRef(null);
   const paypalButtonRef = useRef(null);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -246,7 +247,6 @@ export default function AudioTranscriptionSaaS() {
   // INITIALIZATION & EFFECTS
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // Fetch latest user data from server (Quotas, Tier, etc.)
   const fetchUserData = async (token) => {
     if (!token) return;
     try {
@@ -268,7 +268,6 @@ export default function AudioTranscriptionSaaS() {
     }
   };
 
-  // Fetch history from server
   const fetchHistory = async (token) => {
     if (!token) return;
     try {
@@ -285,7 +284,6 @@ export default function AudioTranscriptionSaaS() {
   };
 
   useEffect(() => {
-    // Check for payment success/cancel in URL
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     const tier = urlParams.get('tier');
@@ -306,7 +304,6 @@ export default function AudioTranscriptionSaaS() {
       window.history.replaceState({}, '', window.location.pathname);
     }
     
-    // Load stored auth
     const storedAuth = storage.get('voxify_auth');
     if (storedAuth) {
       try {
@@ -327,7 +324,6 @@ export default function AudioTranscriptionSaaS() {
       }
     }
     
-    // Load guest count
     const storedGuestCount = storage.get('voxify_guest_count');
     if (storedGuestCount) {
       const count = parseInt(storedGuestCount.value, 10);
@@ -336,11 +332,9 @@ export default function AudioTranscriptionSaaS() {
       storage.set('voxify_guest_count', '0');
     }
 
-    // Fetch PayPal config
     fetchPayPalConfig();
   }, []);
 
-  // Fetch PayPal configuration
   const fetchPayPalConfig = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/paypal/config`);
@@ -356,7 +350,6 @@ export default function AudioTranscriptionSaaS() {
     }
   };
 
-  // Capture PayPal subscription after approval
   const capturePayPalSubscription = async (subscriptionId, tier) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/capture-subscription`, {
@@ -374,7 +367,7 @@ export default function AudioTranscriptionSaaS() {
         setSuccessMessage(`🎉 Successfully upgraded to ${tier.charAt(0).toUpperCase() + tier.slice(1)}! Your new limits are now active.`);
         setUserTier(tier);
         setUsageMinutes(0);
-        fetchUserData(authToken); // Refresh user data
+        fetchUserData(authToken);
       } else {
         setError(data.detail || 'Failed to activate subscription');
       }
@@ -383,7 +376,6 @@ export default function AudioTranscriptionSaaS() {
     }
   };
 
-  // Close language dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target)) {
@@ -394,7 +386,6 @@ export default function AudioTranscriptionSaaS() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close mode dropdown when clicking outside - NEW!
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target)) {
@@ -405,7 +396,6 @@ export default function AudioTranscriptionSaaS() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Save auth state
   useEffect(() => {
     if (isLoggedIn && userEmail) {
       storage.set('voxify_auth', JSON.stringify({
@@ -419,7 +409,6 @@ export default function AudioTranscriptionSaaS() {
     storage.set('voxify_guest_count', guestTranscriptionCount.toString());
   }, [guestTranscriptionCount]);
 
-  // Render PayPal buttons when modal opens
   useEffect(() => {
     if (showPayPalModal && selectedPlan && paypalLoaded && window.paypal && paypalButtonRef.current) {
       paypalButtonRef.current.innerHTML = '';
@@ -553,7 +542,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FILE HANDLING & RECORDING
+  // FILE HANDLING
   // ═══════════════════════════════════════════════════════════════════════════
   const handleFileUpload = (e) => {
     const uploadedFile = e.target.files[0];
@@ -566,37 +555,8 @@ export default function AudioTranscriptionSaaS() {
     }
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      
-      mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setFile(new File([blob], 'recording.webm', { type: 'audio/webm' }));
-        stream.getTracks().forEach(track => track.stop());
-      };
-      
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      setError('');
-      setTranscription('');
-    } catch (err) {
-      setError('Microphone access denied');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
   // ═══════════════════════════════════════════════════════════════════════════
-  // TRANSCRIPTION - WITH MODE SUPPORT!
+  // TRANSCRIPTION
   // ═══════════════════════════════════════════════════════════════════════════
   const transcribeAudio = async () => {
     if (!file) {
@@ -623,13 +583,13 @@ export default function AudioTranscriptionSaaS() {
     setError('');
     setTranscription('');
     setDetectedLanguage('');
-    setTranscribedMode(''); // Reset
+    setTranscribedMode('');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('language', selectedLanguage);
-      formData.append('mode', selectedMode); // NEW - Send mode to backend!
+      formData.append('mode', selectedMode);
 
       const headers = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -645,7 +605,7 @@ export default function AudioTranscriptionSaaS() {
       if (response.ok && data.success) {
         setTranscription(data.transcription);
         setDetectedLanguage(data.language || selectedLanguage);
-        setTranscribedMode(data.mode || selectedMode); // NEW - Track which mode was used
+        setTranscribedMode(data.mode || selectedMode);
         
         if (isLoggedIn) {
           setTranscriptionCount(prev => prev + 1);
@@ -736,7 +696,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // MODE SELECTOR COMPONENT - NEW!
+  // MODE SELECTOR COMPONENT
   // ═══════════════════════════════════════════════════════════════════════════
   const ModeSelector = () => {
     const currentMode = TRANSCRIPTION_MODES[selectedMode];
@@ -796,7 +756,7 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LANGUAGE SELECTOR COMPONENT (UPDATED WITH RED LOCKS)
+  // LANGUAGE SELECTOR COMPONENT
   // ═══════════════════════════════════════════════════════════════════════════
   const LanguageSelector = () => {
     const isRestricted = !isLoggedIn || (isLoggedIn && userTier === 'free');
@@ -973,11 +933,16 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // TRANSCRIBE SECTION - WITH MODE INFO!
+  // TRANSCRIBE SECTION - WITH AUDIO COMPONENTS INTEGRATED!
   // ═══════════════════════════════════════════════════════════════════════════
   const TranscribeSection = ({ isGuest = false }) => {
     const remaining = isGuest ? getRemainingGuestAttempts() : TIER_LIMITS[userTier] - usageMinutes;
     const isLimitReached = remaining <= 0;
+    
+    // Calculate remaining quota in SECONDS
+    const remainingQuotaSeconds = isGuest 
+      ? getRemainingGuestAttempts() * 180  // 3 minutes per guest attempt
+      : (TIER_LIMITS[userTier] - usageMinutes) * 60;
     
     return (
       <div className="space-y-6">
@@ -988,6 +953,7 @@ export default function AudioTranscriptionSaaS() {
             <button onClick={() => setSuccessMessage('')}><X className="w-4 h-4 text-emerald-500" /></button>
           </div>
         )}
+        
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-slate-900">Upload Audio</h2>
@@ -997,7 +963,7 @@ export default function AudioTranscriptionSaaS() {
             </div>
           </div>
           
-          {/* Mode info banner - NEW! */}
+          {/* Mode info banner */}
           <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
             <div className="flex items-center gap-2">
               <span className="text-xl">{TRANSCRIPTION_MODES[selectedMode].icon}</span>
@@ -1012,6 +978,7 @@ export default function AudioTranscriptionSaaS() {
             </div>
           </div>
           
+          {/* File Upload Area */}
           <div
             onClick={() => !isLimitReached && fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${
@@ -1029,35 +996,40 @@ export default function AudioTranscriptionSaaS() {
             <p className="text-sm text-slate-500 mt-2">MP3, WAV, M4A, WebM up to 100MB</p>
             <input ref={fileInputRef} type="file" accept="audio/*" onChange={handleFileUpload} disabled={isLimitReached} className="hidden" />
           </div>
+          
+          {/* Uploaded File Display with Waveform */}
+          {file && (
+            <div className="mt-6">
+              <AudioFileDisplay
+                file={file}
+                onRemove={() => {
+                  setFile(null);
+                  setTranscription('');
+                  setError('');
+                }}
+                showPlayback={true}
+              />
+            </div>
+          )}
+          
+          {/* OR Divider */}
           <div className="flex items-center gap-4 my-6">
             <div className="flex-1 h-px bg-slate-200"></div>
             <span className="text-sm text-slate-400 font-medium">OR RECORD</span>
             <div className="flex-1 h-px bg-slate-200"></div>
           </div>
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={isLimitReached && !isRecording}
-            className={`w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 ${
-              isRecording ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
-              : isLimitReached ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-            }`}
-          >
-            <Mic className="w-5 h-5" />
-            {isRecording ? 'Stop Recording' : 'Start Recording'}
-          </button>
-          {file && (
-            <div className="mt-6 flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <FileAudio className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-900 truncate">{file.name}</p>
-                <p className="text-sm text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </div>
-              <CheckCircle className="w-6 h-6 text-emerald-500" />
-            </div>
-          )}
+          
+          {/* Audio Recorder Component */}
+          <AudioRecorder
+            onRecordingComplete={(recordedFile) => {
+              setFile(recordedFile);
+              setError('');
+              setTranscription('');
+            }}
+            remainingQuota={remainingQuotaSeconds}
+            maxDuration={600} // 10 minutes max
+          />
+          
           {error && (
             <div className={`mt-6 flex items-center gap-3 p-4 rounded-xl border ${
               error.startsWith('✓') ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
@@ -1066,6 +1038,7 @@ export default function AudioTranscriptionSaaS() {
               <p className={`text-sm ${error.startsWith('✓') ? 'text-emerald-700' : 'text-red-700'}`}>{error}</p>
             </div>
           )}
+          
           <button
             onClick={transcribeAudio}
             disabled={!file || isProcessing || isLimitReached}
@@ -1074,12 +1047,13 @@ export default function AudioTranscriptionSaaS() {
             {isProcessing ? <><Loader2 className="w-5 h-5 animate-spin" /> Transcribing...</> : <><Zap className="w-5 h-5" /> Transcribe Now</>}
           </button>
         </div>
+        
+        {/* Transcription Results */}
         {transcription && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Transcription</h2>
-                {/* Mode indicator in results - NEW! */}
                 <div className="flex items-center gap-3 mt-1">
                   {detectedLanguage && (
                     <p className="text-sm text-slate-500">
