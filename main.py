@@ -13,6 +13,8 @@ import base64
 from dotenv import load_dotenv
 from psycopg2.pool import SimpleConnectionPool
 from contextlib import contextmanager
+import io
+from pydub import AudioSegment
 
 # -------------------------------------------------
 # Environment & basic config
@@ -56,7 +58,7 @@ app.add_middleware(
 
 security = HTTPBearer()
 
-# Pricing tiers (in minutes)
+# Pricing tiers (in minutes per month)
 TIER_LIMITS: Dict[str, int] = {
     "free": int(os.getenv("TIER_FREE_LIMIT", 15)),
     "starter": int(os.getenv("TIER_STARTER_LIMIT", 300)),
@@ -64,12 +66,21 @@ TIER_LIMITS: Dict[str, int] = {
     "enterprise": int(os.getenv("TIER_ENTERPRISE_LIMIT", 10000)),
 }
 
-# Supported languages for Whisper
+# Supported languages - LIMITED TO ARABIC, FRENCH, AND ENGLISH ONLY
 SUPPORTED_LANGUAGES = {
     "auto": "Auto-detect",
+    "ar": "Arabic",
+    "fr": "French",
+    "en": "English",
+}
+
+# All languages (for display in frontend with lock icon for non-supported)
+ALL_LANGUAGES = {
+    "auto": "Auto-detect",
+    "ar": "Arabic",
+    "fr": "French",
     "en": "English",
     "es": "Spanish",
-    "fr": "French",
     "de": "German",
     "it": "Italian",
     "pt": "Portuguese",
@@ -79,14 +90,11 @@ SUPPORTED_LANGUAGES = {
     "zh": "Chinese",
     "ja": "Japanese",
     "ko": "Korean",
-    "ar": "Arabic",
     "hi": "Hindi",
     "tr": "Turkish",
     "vi": "Vietnamese",
     "th": "Thai",
     "id": "Indonesian",
-    "ms": "Malay",
-    "fil": "Filipino",
     "uk": "Ukrainian",
     "cs": "Czech",
     "ro": "Romanian",
@@ -123,7 +131,7 @@ def startup_event():
     # Ensure tables exist
     with get_db_conn() as conn:
         with conn.cursor() as cur:
-            # Create users table if not exists
+            # Create users table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -131,57 +139,35 @@ def startup_event():
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     tier VARCHAR(50) DEFAULT 'free',
-                    usage_minutes INTEGER DEFAULT 0,
+                    usage_seconds INTEGER DEFAULT 0,
                     transcription_count INTEGER DEFAULT 0,
                     paypal_subscription_id VARCHAR(255),
                     paypal_payer_id VARCHAR(255),
                     subscription_status VARCHAR(50) DEFAULT 'inactive',
+                    monthly_reset_date DATE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
             
-            # Create transcriptions table if not exists
+            # Create transcriptions table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS transcriptions (
                     id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
                     filename VARCHAR(255),
                     transcription TEXT,
-                    duration INTEGER,
+                    duration_seconds INTEGER,
                     language VARCHAR(50),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
             
-            # Add PayPal columns if they don't exist (migration from Stripe)
+            # Create indexes for better performance
             cur.execute("""
-                DO $$ 
-                BEGIN
-                    -- Add PayPal columns
-                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='users' AND column_name='paypal_subscription_id') THEN
-                        ALTER TABLE users ADD COLUMN paypal_subscription_id VARCHAR(255);
-                    END IF;
-                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='users' AND column_name='paypal_payer_id') THEN
-                        ALTER TABLE users ADD COLUMN paypal_payer_id VARCHAR(255);
-                    END IF;
-                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='users' AND column_name='subscription_status') THEN
-                        ALTER TABLE users ADD COLUMN subscription_status VARCHAR(50) DEFAULT 'inactive';
-                    END IF;
-                    
-                    -- Remove old Stripe columns if they exist
-                    IF EXISTS (SELECT 1 FROM information_schema.columns 
-                               WHERE table_name='users' AND column_name='stripe_customer_id') THEN
-                        ALTER TABLE users DROP COLUMN stripe_customer_id;
-                    END IF;
-                    IF EXISTS (SELECT 1 FROM information_schema.columns 
-                               WHERE table_name='users' AND column_name='stripe_subscription_id') THEN
-                        ALTER TABLE users DROP COLUMN stripe_subscription_id;
-                    END IF;
-                END $$;
+                CREATE INDEX IF NOT EXISTS idx_transcriptions_user_id ON transcriptions(user_id);
+                CREATE INDEX IF NOT EXISTS idx_transcriptions_created_at ON transcriptions(created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
             """)
     print("✅ Database tables ready")
 
@@ -270,6 +256,71 @@ def optional_verify_token(authorization: Optional[str] = Header(None)) -> Option
         return None
 
 
+def get_audio_duration_seconds(audio_bytes: bytes, filename: str) -> int:
+    """
+    Accurately calculate audio duration in seconds using pydub
+    """
+    try:
+        # Determine audio format from filename
+        file_ext = filename.lower().split('.')[-1]
+        
+        # Map common extensions
+        format_map = {
+            'mp3': 'mp3',
+            'wav': 'wav',
+            'webm': 'webm',
+            'ogg': 'ogg',
+            'm4a': 'mp4',
+            'aac': 'aac',
+            'flac': 'flac',
+        }
+        
+        audio_format = format_map.get(file_ext, 'mp3')
+        
+        # Load audio and get duration
+        audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format=audio_format)
+        duration_seconds = int(audio.duration_seconds)
+        
+        # Minimum 1 second
+        return max(1, duration_seconds)
+    except Exception as e:
+        print(f"Error calculating duration: {str(e)}")
+        # Fallback to rough estimate based on file size (16kHz, 16-bit audio)
+        estimated_seconds = max(1, len(audio_bytes) // (16000 * 2))
+        return estimated_seconds
+
+
+def seconds_to_minutes(seconds: int) -> int:
+    """Convert seconds to minutes, rounding up"""
+    return (seconds + 59) // 60
+
+
+def check_and_reset_monthly_quota(user: Dict[str, Any]) -> None:
+    """Reset user's quota if it's a new month"""
+    today = datetime.now().date()
+    reset_date = user.get('monthly_reset_date')
+    
+    if reset_date is None or reset_date <= today:
+        # Set next reset date to first day of next month
+        if today.month == 12:
+            next_reset = datetime(today.year + 1, 1, 1).date()
+        else:
+            next_reset = datetime(today.year, today.month + 1, 1).date()
+        
+        with get_db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users 
+                    SET usage_seconds = 0, 
+                        monthly_reset_date = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE email = %s
+                    """,
+                    (next_reset, user['email'])
+                )
+
+
 # -------------------------------------------------
 # PayPal Helper Functions
 # -------------------------------------------------
@@ -335,10 +386,19 @@ def cancel_paypal_subscription(subscription_id: str, reason: str = "User request
 def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> dict:
     """
     Transcribe using self-hosted Whisper API with language selection
+    Only supports: Arabic, French, English
     """
     if not WHISPER_API_URL:
         return {
             "transcription": "⚠️ Whisper API not configured",
+            "language": "unknown",
+            "success": False
+        }
+    
+    # Validate language is supported
+    if language not in SUPPORTED_LANGUAGES:
+        return {
+            "transcription": f"⚠️ Language '{language}' is not supported. Please use Arabic, French, or English.",
             "language": "unknown",
             "success": False
         }
@@ -360,9 +420,19 @@ def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "
 
         if response.status_code == 200:
             result = response.json()
+            detected_language = result.get("language", language if language != "auto" else "detected")
+            
+            # Validate detected language is supported
+            if detected_language not in SUPPORTED_LANGUAGES and detected_language != "detected":
+                return {
+                    "transcription": f"⚠️ Detected language '{detected_language}' is not supported. Please use Arabic, French, or English.",
+                    "language": detected_language,
+                    "success": False
+                }
+            
             return {
                 "transcription": result.get("transcription", ""),
-                "language": result.get("language", language if language != "auto" else "detected"),
+                "language": detected_language,
                 "success": True
             }
         elif response.status_code == 503:
@@ -402,8 +472,8 @@ def db_get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
             cur.execute(
                 """
                 SELECT id, username, email, password_hash, tier,
-                       usage_minutes, transcription_count, paypal_subscription_id,
-                       paypal_payer_id, subscription_status,
+                       usage_seconds, transcription_count, paypal_subscription_id,
+                       paypal_payer_id, subscription_status, monthly_reset_date,
                        created_at, updated_at
                 FROM users WHERE email = %s
                 """,
@@ -420,26 +490,35 @@ def db_get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
         "email": row[2],
         "password_hash": row[3],
         "tier": row[4],
-        "usage_minutes": row[5],
+        "usage_seconds": row[5],
         "transcription_count": row[6],
         "paypal_subscription_id": row[7],
         "paypal_payer_id": row[8],
         "subscription_status": row[9],
-        "created_at": row[10],
-        "updated_at": row[11],
+        "monthly_reset_date": row[10],
+        "created_at": row[11],
+        "updated_at": row[12],
     }
 
 
 def db_create_user(username: str, email: str, password_hash: str) -> Dict[str, Any]:
+    """Create a new user with free tier and set monthly reset date"""
+    today = datetime.now().date()
+    # Set reset date to first day of next month
+    if today.month == 12:
+        next_reset = datetime(today.year + 1, 1, 1).date()
+    else:
+        next_reset = datetime(today.year, today.month + 1, 1).date()
+    
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (username, email, password_hash, tier, usage_minutes, transcription_count)
-                VALUES (%s, %s, %s, %s, 0, 0)
-                RETURNING id, username, email, tier, usage_minutes, transcription_count
+                INSERT INTO users (username, email, password_hash, tier, usage_seconds, transcription_count, monthly_reset_date)
+                VALUES (%s, %s, %s, %s, 0, 0, %s)
+                RETURNING id, username, email, tier, usage_seconds, transcription_count
                 """,
-                (username, email, password_hash, "free"),
+                (username, email, password_hash, "free", next_reset),
             )
             row = cur.fetchone()
 
@@ -448,27 +527,29 @@ def db_create_user(username: str, email: str, password_hash: str) -> Dict[str, A
         "username": row[1],
         "email": row[2],
         "tier": row[3],
-        "usage_minutes": row[4],
+        "usage_seconds": row[4],
         "transcription_count": row[5],
     }
 
 
-def db_update_user_usage(email: str, minutes_delta: int) -> None:
+def db_update_user_usage(email: str, seconds_delta: int) -> None:
+    """Update user usage in seconds"""
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE users
-                SET usage_minutes = usage_minutes + %s,
+                SET usage_seconds = usage_seconds + %s,
                     transcription_count = transcription_count + 1,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE email = %s
                 """,
-                (minutes_delta, email),
+                (seconds_delta, email),
             )
 
 
-def db_insert_transcription(user_email: str, filename: str, transcription: str, duration: int, language: str = "auto") -> None:
+def db_insert_transcription(user_email: str, filename: str, transcription: str, duration_seconds: int, language: str = "auto") -> None:
+    """Insert transcription record with accurate duration"""
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             # Get user id
@@ -480,10 +561,10 @@ def db_insert_transcription(user_email: str, filename: str, transcription: str, 
             
             cur.execute(
                 """
-                INSERT INTO transcriptions (user_id, filename, transcription, duration, language)
+                INSERT INTO transcriptions (user_id, filename, transcription, duration_seconds, language)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (user_id, filename, transcription, duration, language),
+                (user_id, filename, transcription, duration_seconds, language),
             )
 
 
@@ -497,7 +578,7 @@ def db_update_paypal_subscription(email: str, subscription_id: str, payer_id: st
                     paypal_payer_id = %s,
                     tier = %s, 
                     subscription_status = %s,
-                    usage_minutes = 0,
+                    usage_seconds = 0,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE email = %s
                 """,
@@ -526,16 +607,29 @@ def db_get_user_stats(email: str) -> Dict[str, Any]:
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    tier_limit = TIER_LIMITS.get(user["tier"], TIER_LIMITS["free"])
+    # Check and reset monthly quota if needed
+    check_and_reset_monthly_quota(user)
+    
+    # Refresh user data after potential reset
+    user = db_get_user_by_email(email)
+    
+    tier_limit_minutes = TIER_LIMITS.get(user["tier"], TIER_LIMITS["free"])
+    tier_limit_seconds = tier_limit_minutes * 60
+    usage_minutes = seconds_to_minutes(user["usage_seconds"])
+    
     return {
         "email": user["email"],
         "username": user["username"],
         "tier": user["tier"],
-        "usage_minutes": user["usage_minutes"],
+        "usage_seconds": user["usage_seconds"],
+        "usage_minutes": usage_minutes,
         "transcription_count": user["transcription_count"],
-        "limit": tier_limit,
-        "remaining": tier_limit - user["usage_minutes"],
+        "limit_minutes": tier_limit_minutes,
+        "limit_seconds": tier_limit_seconds,
+        "remaining_seconds": max(0, tier_limit_seconds - user["usage_seconds"]),
+        "remaining_minutes": max(0, tier_limit_minutes - usage_minutes),
         "subscription_status": user.get("subscription_status", "inactive"),
+        "monthly_reset_date": user.get("monthly_reset_date").isoformat() if user.get("monthly_reset_date") else None,
     }
 
 
@@ -550,7 +644,7 @@ def db_get_transcription_history(email: str, limit: int = 10):
 
             cur.execute(
                 """
-                SELECT id, filename, transcription, duration, language, created_at
+                SELECT id, filename, transcription, duration_seconds, language, created_at
                 FROM transcriptions
                 WHERE user_id = %s
                 ORDER BY created_at DESC
@@ -571,7 +665,8 @@ def db_get_transcription_history(email: str, limit: int = 10):
             "id": r[0],
             "filename": r[1],
             "transcription": r[2],
-            "duration": r[3],
+            "duration_seconds": r[3],
+            "duration_minutes": seconds_to_minutes(r[3]),
             "language": r[4],
             "created_at": r[5].isoformat() if r[5] else None,
         }
@@ -590,13 +685,23 @@ async def root():
         "service": "Voxify API",
         "version": "2.0.0",
         "status": "operational",
-        "payment_provider": "PayPal"
+        "payment_provider": "PayPal",
+        "supported_languages": list(SUPPORTED_LANGUAGES.keys())
     }
 
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/api/languages")
+async def get_languages():
+    """Return all languages with support status"""
+    return {
+        "supported": SUPPORTED_LANGUAGES,
+        "all": ALL_LANGUAGES
+    }
 
 
 # -------- Auth Endpoints --------
@@ -617,7 +722,8 @@ async def signup(user: UserCreate):
             "email": new_user["email"],
             "username": new_user["username"],
             "tier": new_user["tier"],
-            "usage_minutes": new_user["usage_minutes"],
+            "usage_seconds": new_user["usage_seconds"],
+            "usage_minutes": seconds_to_minutes(new_user["usage_seconds"]),
             "transcription_count": new_user["transcription_count"],
         },
     }
@@ -632,6 +738,12 @@ async def login(user: UserLogin):
     if not verify_password(user.password, db_user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    # Check and reset monthly quota if needed
+    check_and_reset_monthly_quota(db_user)
+    
+    # Refresh user data
+    db_user = db_get_user_by_email(user.email)
+    
     token = create_access_token({"email": db_user["email"], "user_id": db_user["id"]})
     
     return {
@@ -640,7 +752,8 @@ async def login(user: UserLogin):
             "email": db_user["email"],
             "username": db_user["username"],
             "tier": db_user["tier"],
-            "usage_minutes": db_user["usage_minutes"],
+            "usage_seconds": db_user["usage_seconds"],
+            "usage_minutes": seconds_to_minutes(db_user["usage_seconds"]),
             "transcription_count": db_user["transcription_count"],
         },
     }
@@ -653,11 +766,18 @@ async def get_current_user(user_data: dict = Depends(verify_token)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Check and reset monthly quota if needed
+    check_and_reset_monthly_quota(user)
+    
+    # Refresh user data
+    user = db_get_user_by_email(email)
+    
     return {
         "email": user["email"],
         "username": user["username"],
         "tier": user["tier"],
-        "usage_minutes": user["usage_minutes"],
+        "usage_seconds": user["usage_seconds"],
+        "usage_minutes": seconds_to_minutes(user["usage_seconds"]),
         "transcription_count": user["transcription_count"],
         "subscription_status": user.get("subscription_status", "inactive"),
     }
@@ -670,20 +790,30 @@ async def transcribe_audio(
     language: str = Form("auto"),
     user_data: Optional[dict] = Depends(optional_verify_token),
 ):
-    # Validate language
+    # Validate language is supported
     if language not in SUPPORTED_LANGUAGES:
-        language = "auto"
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Language '{language}' is not supported. Supported languages: Arabic, French, English."
+        )
+    
+    # Read audio file
+    audio_bytes = await file.read()
+    
+    # Calculate accurate duration
+    duration_seconds = get_audio_duration_seconds(audio_bytes, file.filename)
     
     # Guest mode (no token)
     if not user_data:
         try:
-            audio_bytes = await file.read()
             result = transcribe_with_whisper(audio_bytes, file.filename, language)
             return {
                 "success": result["success"],
                 "transcription": result["transcription"],
                 "language": result["language"],
                 "filename": file.filename,
+                "duration_seconds": duration_seconds,
+                "duration_minutes": seconds_to_minutes(duration_seconds),
                 "guest": True,
             }
         except Exception as e:
@@ -695,34 +825,39 @@ async def transcribe_audio(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Check and reset monthly quota if needed
+    check_and_reset_monthly_quota(user)
+    
+    # Refresh user data
+    user = db_get_user_by_email(email)
+
     tier = user.get("tier", "free")
-    tier_limit = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
-    current_usage = user.get("usage_minutes", 0)
+    tier_limit_minutes = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+    tier_limit_seconds = tier_limit_minutes * 60
+    current_usage_seconds = user.get("usage_seconds", 0)
 
-    # Estimate duration
-    file_size = 0
-    audio_bytes = await file.read()
-    file_size = len(audio_bytes)
-    estimated_duration = max(1, file_size // (16000 * 2))  # Rough estimate
-
-    if current_usage + estimated_duration > tier_limit:
+    # Check if user has enough quota
+    if current_usage_seconds + duration_seconds > tier_limit_seconds:
         raise HTTPException(
             status_code=403,
-            detail="Usage limit reached. Please upgrade your plan.",
+            detail=f"Usage limit reached. You need {seconds_to_minutes(duration_seconds)} minutes but only have {seconds_to_minutes(tier_limit_seconds - current_usage_seconds)} minutes remaining. Please upgrade your plan.",
         )
 
     try:
         result = transcribe_with_whisper(audio_bytes, file.filename, language)
 
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["transcription"])
+
         # Update usage
-        db_update_user_usage(email, estimated_duration)
+        db_update_user_usage(email, duration_seconds)
 
         # Store transcription with language
         db_insert_transcription(
             user_email=email,
             filename=file.filename,
             transcription=result["transcription"],
-            duration=estimated_duration,
+            duration_seconds=duration_seconds,
             language=result["language"],
         )
 
@@ -732,14 +867,20 @@ async def transcribe_audio(
             "success": result["success"],
             "transcription": result["transcription"],
             "language": result["language"],
-            "duration": estimated_duration,
+            "duration_seconds": duration_seconds,
+            "duration_minutes": seconds_to_minutes(duration_seconds),
             "filename": file.filename,
             "usage": {
-                "used": updated_user["usage_minutes"],
-                "limit": tier_limit,
-                "remaining": tier_limit - updated_user["usage_minutes"],
+                "used_seconds": updated_user["usage_seconds"],
+                "used_minutes": seconds_to_minutes(updated_user["usage_seconds"]),
+                "limit_seconds": tier_limit_seconds,
+                "limit_minutes": tier_limit_minutes,
+                "remaining_seconds": tier_limit_seconds - updated_user["usage_seconds"],
+                "remaining_minutes": tier_limit_minutes - seconds_to_minutes(updated_user["usage_seconds"]),
             },
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -845,12 +986,10 @@ async def paypal_webhook(request: Request):
         
         if event_type == "BILLING.SUBSCRIPTION.ACTIVATED":
             subscription_id = resource.get("id")
-            # Subscription activated - already handled in capture
             print(f"✅ Subscription activated: {subscription_id}")
             
         elif event_type == "BILLING.SUBSCRIPTION.CANCELLED":
             subscription_id = resource.get("id")
-            # Find user by subscription ID and cancel
             with get_db_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -874,7 +1013,6 @@ async def paypal_webhook(request: Request):
             print(f"⚠️ Subscription suspended: {subscription_id}")
             
         elif event_type == "PAYMENT.SALE.COMPLETED":
-            # Recurring payment successful
             print(f"💰 Payment completed")
             
         elif event_type == "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
@@ -982,6 +1120,7 @@ if __name__ == "__main__":
     print(f"💳 PayPal: {'✅ Configured' if PAYPAL_CLIENT_ID else '❌ Not configured'}")
     print(f"🎙️ Whisper: {'✅ Configured' if WHISPER_API_URL else '❌ Not configured'}")
     print(f"🗄️ Database: {'✅ Configured' if DATABASE_URL else '❌ Not configured'}")
+    print(f"🌍 Languages: Arabic, French, English only")
     print("=" * 60)
 
     uvicorn.run(
