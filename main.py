@@ -21,7 +21,7 @@ from pydub import AudioSegment
 # -------------------------------------------------
 load_dotenv()
 
-app = FastAPI(title="Voxify API", version="2.1.0")
+app = FastAPI(title="Voxify API", version="2.2.0")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "default-secret-key-change-this")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -292,9 +292,9 @@ def cancel_paypal_subscription(subscription_id: str, reason: str = "User request
 # -------------------------------------------------
 # Whisper Transcription
 # -------------------------------------------------
-def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto") -> dict:
+def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "auto", mode: str = "fast") -> dict:
     """
-    Transcribe using self-hosted Whisper API
+    Transcribe using self-hosted Whisper API (supports 'fast' vs 'quality' mode)
     """
     if not WHISPER_API_URL:
         return {
@@ -305,7 +305,9 @@ def transcribe_with_whisper(audio_bytes: bytes, filename: str, language: str = "
     
     try:
         files = {"file": (filename, audio_bytes, "audio/mpeg")}
-        data = {}
+        
+        # Build payload with mode and language
+        data = {"mode": mode}
         if language and language != "auto":
             data["language"] = language
         
@@ -539,7 +541,7 @@ def db_get_transcription_history(email: str, limit: int = 10):
 async def root():
     return {
         "service": "Voxify API",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "status": "operational",
         "quota_policy": "Free tier resets daily. Paid tiers reset monthly.",
         "supported_languages": list(SUPPORTED_LANGUAGES.keys())
@@ -637,6 +639,7 @@ async def get_current_user(user_data: dict = Depends(verify_token)):
 async def transcribe_audio(
     file: UploadFile = File(...),
     language: str = Form("auto"),
+    mode: str = Form("fast"),  # New mode parameter
     user_data: Optional[dict] = Depends(optional_verify_token),
 ):
     # 1. READ FILE & DURATION
@@ -673,7 +676,8 @@ async def transcribe_audio(
 
     # 5. TRANSCRIBE
     try:
-        result = transcribe_with_whisper(audio_bytes, file.filename, language)
+        # Pass the 'mode' parameter to the helper
+        result = transcribe_with_whisper(audio_bytes, file.filename, language, mode)
 
         if not result["success"]:
             raise HTTPException(status_code=400, detail=result["transcription"])
@@ -845,7 +849,7 @@ async def get_transcription_history(limit: int = 10, user_data: dict = Depends(v
 # -------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Voxify API v2.1.0")
+    print("🚀 Voxify API v2.2.0")
     uvicorn.run(
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),
