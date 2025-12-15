@@ -894,9 +894,14 @@ export default function App() {
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       `}</style>
-      {(
-        <><Navigation />{currentPage === 'home' && <HomePage />}{currentPage === 'tools' && <ToolsPage />}{currentPage === 'blog' && <BlogPage />}{currentPage === 'about' && <AboutPage />}<Footer /></>
-      )}
+      <>
+        <Navigation />
+        {currentPage === 'home' && <HomePage />}
+        {currentPage === 'tools' && <ToolsPage />}
+        {currentPage === 'blog' && <BlogPage />}
+        {currentPage === 'about' && <AboutPage />}
+        <Footer />
+      </>      )}
     </div>
   );
 }
