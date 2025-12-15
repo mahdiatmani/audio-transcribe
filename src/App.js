@@ -13,7 +13,7 @@ import {
 // ═══════════════════════════════════════════════════════════════════════════
 const SITE_CONFIG = {
   name: 'AI Need Tools',
-  tagline: 'Your Hub for  AI-Powered Solutions',
+  tagline: 'Your Hub for AI-Powered Solutions',
   domain: 'ai-need-tools.online',
 };
 
