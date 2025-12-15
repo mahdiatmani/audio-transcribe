@@ -103,28 +103,9 @@ const AI_TOOLS = [
 // GOOGLE ADS COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Ad Placeholder Component (Replace with actual Google Ads code)
 const AdUnit = ({ slot, format = 'auto', responsive = true, style = {} }) => {
-  // TODO: Replace with actual Google AdSense code
-  // Example:
-  // useEffect(() => {
-  //   try {
-  //     (window.adsbygoogle = window.adsbygoogle || []).push({});
-  //   } catch (e) {
-  //     console.error('Ad error:', e);
-  //   }
-  // }, []);
-
   return (
     <div className="ad-container my-8" style={style}>
-      {/* Replace this div with actual Google Ads code:
-      <ins className="adsbygoogle"
-           style={{ display: 'block' }}
-           data-ad-client="ca-pub-XXXXXXXXXX"
-           data-ad-slot={slot}
-           data-ad-format={format}
-           data-full-width-responsive={responsive}></ins>
-      */}
       <div className="bg-gray-800/30 border border-gray-700 rounded-xl p-4 text-center text-gray-500 text-sm">
         Ad Space {slot} - {format}
       </div>
@@ -132,23 +113,15 @@ const AdUnit = ({ slot, format = 'auto', responsive = true, style = {} }) => {
   );
 };
 
-// Header Banner Ad
 const HeaderAd = () => <AdUnit slot="header-banner" format="horizontal" style={{ maxWidth: '970px', margin: '0 auto' }} />;
-
-// Sidebar Ad
 const SidebarAd = () => <AdUnit slot="sidebar-ad" format="rectangle" />;
-
-// In-Feed Ad (between blog posts)
 const InFeedAd = () => <AdUnit slot="in-feed-ad" format="fluid" />;
-
-// In-Article Ad
 const InArticleAd = () => <AdUnit slot="in-article-ad" format="fluid" />;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Logo Component
 const Logo = ({ size = 40 }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
     <defs>
@@ -177,23 +150,16 @@ const Logo = ({ size = 40 }) => (
   </svg>
 );
 
-// SEO Meta Component (for dynamic meta tags)
 const updateMetaTags = (title, description, image, url) => {
   document.title = title;
-  
-  // Update or create meta tags
   const metaDescription = document.querySelector('meta[name="description"]');
   if (metaDescription) metaDescription.setAttribute('content', description);
-  
   const ogTitle = document.querySelector('meta[property="og:title"]');
   if (ogTitle) ogTitle.setAttribute('content', title);
-  
   const ogDescription = document.querySelector('meta[property="og:description"]');
   if (ogDescription) ogDescription.setAttribute('content', description);
-  
   const ogImage = document.querySelector('meta[property="og:image"]');
   if (ogImage) ogImage.setAttribute('content', image);
-  
   const ogUrl = document.querySelector('meta[property="og:url"]');
   if (ogUrl) ogUrl.setAttribute('content', url);
 };
@@ -209,7 +175,6 @@ export default function App() {
   const [subscribed, setSubscribed] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   
-  // Blog posts state - Contentful integration
   const [blogPosts, setBlogPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
 
@@ -217,7 +182,6 @@ export default function App() {
   const filteredTools = selectedCategory === 'all' ? AI_TOOLS : AI_TOOLS.filter(tool => tool.category === selectedCategory);
   const publishedPosts = blogPosts.filter(post => post.published);
 
-  // Fetch blog posts from Contentful
   useEffect(() => {
     fetchContentfulPosts();
   }, []);
@@ -229,10 +193,8 @@ export default function App() {
         content_type: 'blogPost',
         order: '-sys.createdAt',
       });
-      
       const transformedPosts = response.items.map(transformContentfulPost);
       setBlogPosts(transformedPosts);
-      console.log('✅ Loaded posts from Contentful:', transformedPosts.length);
     } catch (error) {
       console.error('❌ Error fetching from Contentful:', error);
       setBlogPosts([]);
@@ -241,101 +203,77 @@ export default function App() {
     }
   };
 
-  // Handle URL-based routing for blog posts and pages
+  // Handle URL-based routing
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       
       if (hash.startsWith('#/blog/')) {
         const slug = hash.replace('#/blog/', '');
+        // If posts are loaded, find the post. If not, we might be waiting for fetch.
+        // For simplicity, we rely on blogPosts being updated.
         const post = blogPosts.find(p => p.slug === slug);
         if (post) {
           setSelectedPost(post);
           setCurrentPage('blog');
-          // Update meta tags for SEO
           updateMetaTags(
             `${post.title} - ${SITE_CONFIG.name}`,
             post.excerpt,
             post.image,
             `https://${SITE_CONFIG.domain}/#/blog/${post.slug}`
           );
+          window.scrollTo(0, 0);
         }
       } else if (hash === '#/blog') {
         setCurrentPage('blog');
         setSelectedPost(null);
-        updateMetaTags(
-          `Blog - ${SITE_CONFIG.name}`,
-          'Read the latest articles about AI tools, tips, and trends.',
-          `https://${SITE_CONFIG.domain}/og-image.png`,
-          `https://${SITE_CONFIG.domain}/#/blog`
-        );
+        updateMetaTags(`Blog - ${SITE_CONFIG.name}`, 'Read the latest articles.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/blog`);
+        window.scrollTo(0, 0);
       } else if (hash === '#/tools') {
         setCurrentPage('tools');
         setSelectedPost(null);
-        updateMetaTags(
-          `AI Tools - ${SITE_CONFIG.name}`,
-          'Discover our collection of powerful AI-powered tools for transcription, content creation, and more.',
-          `https://${SITE_CONFIG.domain}/og-image.png`,
-          `https://${SITE_CONFIG.domain}/#/tools`
-        );
+        updateMetaTags(`AI Tools - ${SITE_CONFIG.name}`, 'Discover AI tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/tools`);
+        window.scrollTo(0, 0);
       } else if (hash === '#/about') {
         setCurrentPage('about');
         setSelectedPost(null);
-        updateMetaTags(
-          `About - ${SITE_CONFIG.name}`,
-          'Learn more about AI Need Tools and our mission to make AI accessible to everyone.',
-          `https://${SITE_CONFIG.domain}/og-image.png`,
-          `https://${SITE_CONFIG.domain}/#/about`
-        );
+        updateMetaTags(`About - ${SITE_CONFIG.name}`, 'About AI Need Tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/about`);
+        window.scrollTo(0, 0);
       } else if (hash === '#/' || hash === '') {
         setCurrentPage('home');
         setSelectedPost(null);
-        updateMetaTags(
-          `${SITE_CONFIG.name} - ${SITE_CONFIG.tagline}`,
-          SITE_CONFIG.description,
-          `https://${SITE_CONFIG.domain}/og-image.png`,
-          `https://${SITE_CONFIG.domain}/`
-        );
+        updateMetaTags(`${SITE_CONFIG.name} - ${SITE_CONFIG.tagline}`, SITE_CONFIG.description, `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/`);
+        window.scrollTo(0, 0);
       }
     };
 
-    handleHashChange();
+    handleHashChange(); // Run on mount/update
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [blogPosts]);
 
   const handleSubscribe = (e) => {
     e.preventDefault();
-    if (email) { 
-      setSubscribed(true); 
-      setEmail(''); 
-      setTimeout(() => setSubscribed(false), 3000); 
-    }
+    if (email) { setSubscribed(true); setEmail(''); setTimeout(() => setSubscribed(false), 3000); }
   };
 
-  const navigateTo = (page) => {
-    setCurrentPage(page);
-    setSelectedPost(null);
-    setMobileMenuOpen(false);
-    window.location.hash = page === 'home' ? '' : `#/${page}`;
-  };
+  // Close mobile menu when navigating
+  const onNavClick = () => setMobileMenuOpen(false);
 
   // Navigation
   const Navigation = () => (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-dark-700/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('home')}>
+          <a href="#/" className="flex items-center gap-3 cursor-pointer group" onClick={onNavClick}>
             <Logo size={36} />
             <span className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">AI Need Tools</span>
-          </div>
+          </a>
           <div className="hidden md:flex items-center gap-8">
-            {['home', 'tools', 'blog', 'about'].map(page => (
-              <button key={page} onClick={() => navigateTo(page)}
-                className={`text-sm font-medium transition-colors capitalize ${currentPage === page ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>
-                {page === 'tools' ? 'AI Tools' : page}
-              </button>
-            ))}
+            <a href="#/" className={`text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Home</a>
+            <a href="#/tools" className={`text-sm font-medium transition-colors ${currentPage === 'tools' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>AI Tools</a>
+            <a href="#/blog" className={`text-sm font-medium transition-colors ${currentPage === 'blog' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Blog</a>
+            <a href="#/about" className={`text-sm font-medium transition-colors ${currentPage === 'about' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>About</a>
           </div>
           <div className="hidden md:block">
             <a href="https://voxify.ai-need-tools.online" target="_blank" rel="noopener noreferrer"
@@ -350,12 +288,10 @@ export default function App() {
       </div>
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4">
-          {['home', 'tools', 'blog', 'about'].map(page => (
-            <button key={page} onClick={() => navigateTo(page)}
-              className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400 capitalize">
-              {page === 'tools' ? 'AI Tools' : page}
-            </button>
-          ))}
+          <a href="#/" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Home</a>
+          <a href="#/tools" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">AI Tools</a>
+          <a href="#/blog" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Blog</a>
+          <a href="#/about" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">About</a>
           <a href="https://voxify.ai-need-tools.online" className="block w-full text-center py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl">Try Voxify Free</a>
         </div>
       )}
@@ -386,10 +322,10 @@ export default function App() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button onClick={() => navigateTo('tools')}
+          <a href="#/tools"
             className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-full hover:from-cyan-400 hover:to-blue-400 transition-all flex items-center justify-center gap-2">
             Explore AI Tools <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
+          </a>
           <a href="https://voxify.ai-need-tools.online" target="_blank" rel="noopener noreferrer"
             className="px-8 py-4 bg-gray-800 border border-gray-700 text-white font-semibold rounded-full hover:bg-gray-700 transition-all flex items-center justify-center gap-2">
             <Mic className="w-5 h-5 text-emerald-400" /> Try Voxify Now <ExternalLink className="w-4 h-4 opacity-50" />
@@ -402,8 +338,6 @@ export default function App() {
           ))}
         </div>
       </div>
-
-      {/* Top Banner Ad */}
       <div className="absolute bottom-8 left-0 right-0">
         <HeaderAd />
       </div>
@@ -466,22 +400,19 @@ export default function App() {
         </div>
         {!showAll && (
           <div className="text-center mt-10">
-            <button onClick={() => navigateTo('tools')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+            <a href="#/tools" className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
               View All Tools <ArrowRight className="w-4 h-4" />
-            </button>
+            </a>
           </div>
         )}
       </div>
     </section>
   );
 
-  // Blog Card
+  // Blog Card - NOW WITH REAL LINKS
   const BlogCard = ({ post, showAd }) => (
     <>
-      <article onClick={() => {
-        setSelectedPost(post);
-        window.location.hash = `#/blog/${post.slug}`;
-      }} className="group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden cursor-pointer hover:translate-y-[-4px] transition-all">
+      <a href={`#/blog/${post.slug}`} className="block group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden hover:translate-y-[-4px] transition-all">
         <div className="relative h-48 overflow-hidden">
           <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
@@ -498,24 +429,21 @@ export default function App() {
             <ChevronRight className="w-4 h-4 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
-      </article>
+      </a>
       {showAd && <InFeedAd />}
     </>
   );
 
-  // Blog Post View with Ads
+  // Blog Post View
   const BlogPostView = ({ post }) => (
     <div className="min-h-screen pt-24 pb-12">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-8">
-            <button onClick={() => {
-              setSelectedPost(null);
-              window.location.hash = '#/blog';
-            }} className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8">
+            <a href="#/blog" className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8 inline-block">
               <ChevronRight className="w-4 h-4 rotate-180" /> Back to Blog
-            </button>
+            </a>
             
             <article>
               <div className="relative h-64 md:h-96 rounded-2xl overflow-hidden mb-8">
@@ -540,7 +468,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* In-Article Ad */}
               <InArticleAd />
               
               <div 
@@ -548,7 +475,6 @@ export default function App() {
                 dangerouslySetInnerHTML={{ __html: post.content }}
               />
 
-              {/* Bottom Article Ad */}
               <InArticleAd />
             </article>
 
@@ -568,24 +494,19 @@ export default function App() {
             )}
           </div>
 
-          {/* Sidebar with Ads */}
+          {/* Sidebar */}
           <aside className="lg:col-span-4">
             <div className="sticky top-20 space-y-8">
-              {/* Sidebar Ad */}
               <SidebarAd />
 
-              {/* Popular Posts */}
+              {/* Popular Posts - NOW WITH REAL LINKS */}
               <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
                 <h3 className="text-lg font-bold text-white mb-4">Popular Posts</h3>
                 <div className="space-y-4">
-                  {publishedPosts.slice(0, 3).map((popularPost, idx) => (
-                    <div key={popularPost.id} 
-                      onClick={() => {
-                        setSelectedPost(popularPost);
-                        window.location.hash = `#/blog/${popularPost.slug}`;
-                        window.scrollTo(0, 0);
-                      }}
-                      className="flex gap-3 cursor-pointer group">
+                  {publishedPosts.slice(0, 3).map((popularPost) => (
+                    <a key={popularPost.id} 
+                      href={`#/blog/${popularPost.slug}`}
+                      className="flex gap-3 group">
                       <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
                         <img src={popularPost.image} alt={popularPost.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                       </div>
@@ -593,15 +514,13 @@ export default function App() {
                         <h4 className="text-sm font-semibold text-white line-clamp-2 group-hover:text-cyan-400 transition-colors">{popularPost.title}</h4>
                         <p className="text-xs text-gray-500 mt-1">{popularPost.date}</p>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               </div>
 
-              {/* Another Sidebar Ad */}
               <SidebarAd />
 
-              {/* Newsletter Signup */}
               <div className="bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-gray-700 rounded-2xl p-6">
                 <h3 className="text-lg font-bold text-white mb-2">Subscribe to Newsletter</h3>
                 <p className="text-gray-400 text-sm mb-4">Get the latest AI tools and tips delivered to your inbox.</p>
@@ -645,15 +564,15 @@ export default function App() {
                 <BlogCard 
                   key={post.id} 
                   post={post} 
-                  showAd={showAll && (idx + 1) % 6 === 0} // Show ad after every 6 posts
+                  showAd={showAll && (idx + 1) % 6 === 0} 
                 />
               ))}
             </div>
             {!showAll && publishedPosts.length > 3 && (
               <div className="text-center mt-10">
-                <button onClick={() => navigateTo('blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+                <a href="#/blog" className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
                   Read More <ArrowRight className="w-4 h-4" />
-                </button>
+                </a>
               </div>
             )}
           </>
@@ -766,8 +685,8 @@ export default function App() {
           <div>
             <h4 className="text-white font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => navigateTo('about')} className="text-gray-400 hover:text-cyan-400">About</button></li>
-              <li><button onClick={() => navigateTo('blog')} className="text-gray-400 hover:text-cyan-400">Blog</button></li>
+              <li><a href="#/about" className="text-gray-400 hover:text-cyan-400">About</a></li>
+              <li><a href="#/blog" className="text-gray-400 hover:text-cyan-400">Blog</a></li>
               <li><a href="mailto:contact@ai-need-tools.online" className="text-gray-400 hover:text-cyan-400">Contact</a></li>
             </ul>
           </div>
@@ -808,7 +727,6 @@ export default function App() {
           overflow: hidden; 
         }
         
-        /* Google Ads Container Styling */
         .ad-container {
           min-height: 90px;
           display: flex;
@@ -817,176 +735,33 @@ export default function App() {
         }
         
         /* Blog Content Styling */
-        .blog-content {
-          color: #d1d5db;
-          line-height: 1.8;
-          font-size: 1.0625rem;
-        }
+        .blog-content { color: #d1d5db; line-height: 1.8; font-size: 1.0625rem; }
+        .blog-content h1 { color: #fff; font-size: 2.25rem; font-weight: 700; margin-top: 3rem; margin-bottom: 1.5rem; line-height: 1.2; }
+        .blog-content h2 { color: #fff; font-size: 1.875rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1.25rem; line-height: 1.3; }
+        .blog-content h3 { color: #fff; font-size: 1.5rem; font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; line-height: 1.4; }
+        .blog-content h4 { color: #f3f4f6; font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .blog-content p { color: #d1d5db; margin-bottom: 1.5rem; line-height: 1.8; }
+        .blog-content ul, .blog-content ol { color: #d1d5db; margin-bottom: 1.5rem; padding-left: 2rem; line-height: 1.8; }
+        .blog-content ul { list-style-type: disc; }
+        .blog-content ol { list-style-type: decimal; }
+        .blog-content li { margin-bottom: 0.75rem; padding-left: 0.5rem; }
+        .blog-content li::marker { color: #06b6d4; }
+        .blog-content strong { color: #fff; font-weight: 600; }
+        .blog-content em { font-style: italic; color: #e5e7eb; }
+        .blog-content a { color: #06b6d4; text-decoration: underline; transition: color 0.2s; }
+        .blog-content a:hover { color: #22d3ee; }
+        .blog-content code { background: #374151; color: #06b6d4; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-size: 0.9em; font-family: 'Courier New', 'Consolas', monospace; }
+        .blog-content pre { background: #1f2937; padding: 1.25rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1.5rem; border: 1px solid #374151; }
+        .blog-content pre code { background: transparent; padding: 0; color: #e5e7eb; }
+        .blog-content blockquote { border-left: 4px solid #06b6d4; padding-left: 1.25rem; margin: 1.5rem 0; color: #9ca3af; font-style: italic; background: #1f2937; padding: 1rem 1.25rem; border-radius: 0.25rem; }
+        .blog-content img { max-width: 100%; height: auto; border-radius: 0.75rem; margin: 2rem 0; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .blog-content hr { border: none; border-top: 2px solid #374151; margin: 2.5rem 0; }
+        .blog-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; background: #1f2937; border-radius: 0.5rem; overflow: hidden; }
+        .blog-content th, .blog-content td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #374151; }
+        .blog-content th { background: #374151; color: #fff; font-weight: 600; }
+        .blog-content tr:last-child td { border-bottom: none; }
         
-        .blog-content h1 {
-          color: #fff;
-          font-size: 2.25rem;
-          font-weight: 700;
-          margin-top: 3rem;
-          margin-bottom: 1.5rem;
-          line-height: 1.2;
-        }
-        
-        .blog-content h2 {
-          color: #fff;
-          font-size: 1.875rem;
-          font-weight: 700;
-          margin-top: 2.5rem;
-          margin-bottom: 1.25rem;
-          line-height: 1.3;
-        }
-        
-        .blog-content h3 {
-          color: #fff;
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin-top: 2rem;
-          margin-bottom: 1rem;
-          line-height: 1.4;
-        }
-        
-        .blog-content h4 {
-          color: #f3f4f6;
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-        }
-        
-        .blog-content p {
-          color: #d1d5db;
-          margin-bottom: 1.5rem;
-          line-height: 1.8;
-        }
-        
-        .blog-content ul, .blog-content ol {
-          color: #d1d5db;
-          margin-bottom: 1.5rem;
-          padding-left: 2rem;
-          line-height: 1.8;
-        }
-        
-        .blog-content ul {
-          list-style-type: disc;
-        }
-        
-        .blog-content ol {
-          list-style-type: decimal;
-        }
-        
-        .blog-content li {
-          margin-bottom: 0.75rem;
-          padding-left: 0.5rem;
-        }
-        
-        .blog-content li::marker {
-          color: #06b6d4;
-        }
-        
-        .blog-content strong {
-          color: #fff;
-          font-weight: 600;
-        }
-        
-        .blog-content em {
-          font-style: italic;
-          color: #e5e7eb;
-        }
-        
-        .blog-content a {
-          color: #06b6d4;
-          text-decoration: underline;
-          transition: color 0.2s;
-        }
-        
-        .blog-content a:hover {
-          color: #22d3ee;
-        }
-        
-        .blog-content code {
-          background: #374151;
-          color: #06b6d4;
-          padding: 0.2rem 0.5rem;
-          border-radius: 0.25rem;
-          font-size: 0.9em;
-          font-family: 'Courier New', 'Consolas', monospace;
-        }
-        
-        .blog-content pre {
-          background: #1f2937;
-          padding: 1.25rem;
-          border-radius: 0.5rem;
-          overflow-x: auto;
-          margin-bottom: 1.5rem;
-          border: 1px solid #374151;
-        }
-        
-        .blog-content pre code {
-          background: transparent;
-          padding: 0;
-          color: #e5e7eb;
-        }
-        
-        .blog-content blockquote {
-          border-left: 4px solid #06b6d4;
-          padding-left: 1.25rem;
-          margin: 1.5rem 0;
-          color: #9ca3af;
-          font-style: italic;
-          background: #1f2937;
-          padding: 1rem 1.25rem;
-          border-radius: 0.25rem;
-        }
-        
-        .blog-content img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 0.75rem;
-          margin: 2rem 0;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-        
-        .blog-content hr {
-          border: none;
-          border-top: 2px solid #374151;
-          margin: 2.5rem 0;
-        }
-        
-        .blog-content table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 1.5rem 0;
-          background: #1f2937;
-          border-radius: 0.5rem;
-          overflow: hidden;
-        }
-        
-        .blog-content th,
-        .blog-content td {
-          padding: 0.75rem 1rem;
-          text-align: left;
-          border-bottom: 1px solid #374151;
-        }
-        
-        .blog-content th {
-          background: #374151;
-          color: #fff;
-          font-weight: 600;
-        }
-        
-        .blog-content tr:last-child td {
-          border-bottom: none;
-        }
-        
-        /* Smooth scroll */
-        html {
-          scroll-behavior: smooth;
-        }
+        html { scroll-behavior: smooth; }
       `}</style>
       
       <Navigation />
