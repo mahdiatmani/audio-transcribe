@@ -3,9 +3,8 @@ import { contentfulClient, transformContentfulPost } from './contentfulConfig';
 import { 
   Mic, FileText, Image, Video, Bot, Sparkles, Zap, Shield, Globe, 
   ArrowRight, ExternalLink, Menu, X, ChevronRight, Clock, User, 
-  Tag, Search, Mail, Twitter, Github, Linkedin, Youtube,
-  Cpu, Wand2, MessageSquare, BarChart3, Code, Layers,
-  Calendar
+  Mail, Twitter, Github, Linkedin, Youtube,
+  Cpu, MessageSquare, BarChart3, Layers, Calendar
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -15,6 +14,7 @@ const SITE_CONFIG = {
   name: 'AI Need Tools',
   tagline: 'Your Hub for AI-Powered Solutions',
   domain: 'ai-need-tools.online',
+  description: 'Discover powerful AI-powered tools for transcription, content creation, automation and more. Your central hub for AI solutions.',
 };
 
 // AI Tools Data
@@ -99,6 +99,55 @@ const AI_TOOLS = [
   },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// GOOGLE ADS COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Ad Placeholder Component (Replace with actual Google Ads code)
+const AdUnit = ({ slot, format = 'auto', responsive = true, style = {} }) => {
+  // TODO: Replace with actual Google AdSense code
+  // Example:
+  // useEffect(() => {
+  //   try {
+  //     (window.adsbygoogle = window.adsbygoogle || []).push({});
+  //   } catch (e) {
+  //     console.error('Ad error:', e);
+  //   }
+  // }, []);
+
+  return (
+    <div className="ad-container my-8" style={style}>
+      {/* Replace this div with actual Google Ads code:
+      <ins className="adsbygoogle"
+           style={{ display: 'block' }}
+           data-ad-client="ca-pub-XXXXXXXXXX"
+           data-ad-slot={slot}
+           data-ad-format={format}
+           data-full-width-responsive={responsive}></ins>
+      */}
+      <div className="bg-gray-800/30 border border-gray-700 rounded-xl p-4 text-center text-gray-500 text-sm">
+        Ad Space {slot} - {format}
+      </div>
+    </div>
+  );
+};
+
+// Header Banner Ad
+const HeaderAd = () => <AdUnit slot="header-banner" format="horizontal" style={{ maxWidth: '970px', margin: '0 auto' }} />;
+
+// Sidebar Ad
+const SidebarAd = () => <AdUnit slot="sidebar-ad" format="rectangle" />;
+
+// In-Feed Ad (between blog posts)
+const InFeedAd = () => <AdUnit slot="in-feed-ad" format="fluid" />;
+
+// In-Article Ad
+const InArticleAd = () => <AdUnit slot="in-article-ad" format="fluid" />;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
 // Logo Component
 const Logo = ({ size = 40 }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
@@ -127,6 +176,27 @@ const Logo = ({ size = 40 }) => (
     </g>
   </svg>
 );
+
+// SEO Meta Component (for dynamic meta tags)
+const updateMetaTags = (title, description, image, url) => {
+  document.title = title;
+  
+  // Update or create meta tags
+  const metaDescription = document.querySelector('meta[name="description"]');
+  if (metaDescription) metaDescription.setAttribute('content', description);
+  
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', title);
+  
+  const ogDescription = document.querySelector('meta[property="og:description"]');
+  if (ogDescription) ogDescription.setAttribute('content', description);
+  
+  const ogImage = document.querySelector('meta[property="og:image"]');
+  if (ogImage) ogImage.setAttribute('content', image);
+  
+  const ogUrl = document.querySelector('meta[property="og:url"]');
+  if (ogUrl) ogUrl.setAttribute('content', url);
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN APP COMPONENT
@@ -171,6 +241,69 @@ export default function App() {
     }
   };
 
+  // Handle URL-based routing for blog posts and pages
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      
+      if (hash.startsWith('#/blog/')) {
+        const slug = hash.replace('#/blog/', '');
+        const post = blogPosts.find(p => p.slug === slug);
+        if (post) {
+          setSelectedPost(post);
+          setCurrentPage('blog');
+          // Update meta tags for SEO
+          updateMetaTags(
+            `${post.title} - ${SITE_CONFIG.name}`,
+            post.excerpt,
+            post.image,
+            `https://${SITE_CONFIG.domain}/#/blog/${post.slug}`
+          );
+        }
+      } else if (hash === '#/blog') {
+        setCurrentPage('blog');
+        setSelectedPost(null);
+        updateMetaTags(
+          `Blog - ${SITE_CONFIG.name}`,
+          'Read the latest articles about AI tools, tips, and trends.',
+          `https://${SITE_CONFIG.domain}/og-image.png`,
+          `https://${SITE_CONFIG.domain}/#/blog`
+        );
+      } else if (hash === '#/tools') {
+        setCurrentPage('tools');
+        setSelectedPost(null);
+        updateMetaTags(
+          `AI Tools - ${SITE_CONFIG.name}`,
+          'Discover our collection of powerful AI-powered tools for transcription, content creation, and more.',
+          `https://${SITE_CONFIG.domain}/og-image.png`,
+          `https://${SITE_CONFIG.domain}/#/tools`
+        );
+      } else if (hash === '#/about') {
+        setCurrentPage('about');
+        setSelectedPost(null);
+        updateMetaTags(
+          `About - ${SITE_CONFIG.name}`,
+          'Learn more about AI Need Tools and our mission to make AI accessible to everyone.',
+          `https://${SITE_CONFIG.domain}/og-image.png`,
+          `https://${SITE_CONFIG.domain}/#/about`
+        );
+      } else if (hash === '#/' || hash === '') {
+        setCurrentPage('home');
+        setSelectedPost(null);
+        updateMetaTags(
+          `${SITE_CONFIG.name} - ${SITE_CONFIG.tagline}`,
+          SITE_CONFIG.description,
+          `https://${SITE_CONFIG.domain}/og-image.png`,
+          `https://${SITE_CONFIG.domain}/`
+        );
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [blogPosts]);
+
   const handleSubscribe = (e) => {
     e.preventDefault();
     if (email) { 
@@ -180,18 +313,25 @@ export default function App() {
     }
   };
 
+  const navigateTo = (page) => {
+    setCurrentPage(page);
+    setSelectedPost(null);
+    setMobileMenuOpen(false);
+    window.location.hash = page === 'home' ? '' : `#/${page}`;
+  };
+
   // Navigation
   const Navigation = () => (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-dark-700/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setCurrentPage('home'); setSelectedPost(null); }}>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('home')}>
             <Logo size={36} />
             <span className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">AI Need Tools</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             {['home', 'tools', 'blog', 'about'].map(page => (
-              <button key={page} onClick={() => { setCurrentPage(page); setSelectedPost(null); }}
+              <button key={page} onClick={() => navigateTo(page)}
                 className={`text-sm font-medium transition-colors capitalize ${currentPage === page ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>
                 {page === 'tools' ? 'AI Tools' : page}
               </button>
@@ -211,7 +351,7 @@ export default function App() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4">
           {['home', 'tools', 'blog', 'about'].map(page => (
-            <button key={page} onClick={() => { setCurrentPage(page); setMobileMenuOpen(false); setSelectedPost(null); }}
+            <button key={page} onClick={() => navigateTo(page)}
               className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400 capitalize">
               {page === 'tools' ? 'AI Tools' : page}
             </button>
@@ -246,7 +386,7 @@ export default function App() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button onClick={() => setCurrentPage('tools')}
+          <button onClick={() => navigateTo('tools')}
             className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-full hover:from-cyan-400 hover:to-blue-400 transition-all flex items-center justify-center gap-2">
             Explore AI Tools <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
@@ -261,6 +401,11 @@ export default function App() {
             <div key={i}><div className="text-3xl sm:text-4xl font-bold text-white">{stat.val}</div><div className="text-sm text-gray-500">{stat.label}</div></div>
           ))}
         </div>
+      </div>
+
+      {/* Top Banner Ad */}
+      <div className="absolute bottom-8 left-0 right-0">
+        <HeaderAd />
       </div>
     </section>
   );
@@ -321,7 +466,7 @@ export default function App() {
         </div>
         {!showAll && (
           <div className="text-center mt-10">
-            <button onClick={() => setCurrentPage('tools')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+            <button onClick={() => navigateTo('tools')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
               View All Tools <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -331,51 +476,145 @@ export default function App() {
   );
 
   // Blog Card
-  const BlogCard = ({ post, onClick }) => (
-    <article onClick={onClick} className="group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden cursor-pointer hover:translate-y-[-4px] transition-all">
-      <div className="relative h-48 overflow-hidden">
-        <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
-        <span className="absolute bottom-3 left-3 px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-semibold rounded-lg">{post.category}</span>
-      </div>
-      <div className="p-5">
-        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors line-clamp-2">{post.title}</h3>
-        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{post.readTime}</span>
-            <span>{post.date}</span>
-          </div>
-          <ChevronRight className="w-4 h-4 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+  const BlogCard = ({ post, showAd }) => (
+    <>
+      <article onClick={() => {
+        setSelectedPost(post);
+        window.location.hash = `#/blog/${post.slug}`;
+      }} className="group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden cursor-pointer hover:translate-y-[-4px] transition-all">
+        <div className="relative h-48 overflow-hidden">
+          <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
+          <span className="absolute bottom-3 left-3 px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-semibold rounded-lg">{post.category}</span>
         </div>
-      </div>
-    </article>
+        <div className="p-5">
+          <h3 className="text-lg font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors line-clamp-2">{post.title}</h3>
+          <p className="text-gray-400 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{post.readTime}</span>
+              <span>{post.date}</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </div>
+      </article>
+      {showAd && <InFeedAd />}
+    </>
   );
 
-  // Blog Post View
+  // Blog Post View with Ads
   const BlogPostView = ({ post }) => (
-    <div className="min-h-screen pt-24">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <button onClick={() => setSelectedPost(null)} className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8">
-          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Blog
-        </button>
-        <div className="relative h-64 md:h-96 rounded-2xl overflow-hidden mb-8">
-          <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+    <div className="min-h-screen pt-24 pb-12">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="grid lg:grid-cols-12 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-8">
+            <button onClick={() => {
+              setSelectedPost(null);
+              window.location.hash = '#/blog';
+            }} className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8">
+              <ChevronRight className="w-4 h-4 rotate-180" /> Back to Blog
+            </button>
+            
+            <article>
+              <div className="relative h-64 md:h-96 rounded-2xl overflow-hidden mb-8">
+                <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+              </div>
+              
+              <div className="flex items-center gap-4 mb-6">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-sm font-semibold rounded-lg">{post.category}</span>
+                <span className="text-gray-500 text-sm flex items-center gap-1"><Clock className="w-4 h-4" />{post.readTime}</span>
+                <span className="text-gray-500 text-sm flex items-center gap-1"><Calendar className="w-4 h-4" />{post.date}</span>
+              </div>
+              
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">{post.title}</h1>
+              
+              <div className="flex items-center gap-3 mb-8 pb-8 border-b border-gray-700">
+                <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">{post.author}</p>
+                  <p className="text-gray-500 text-sm">Author</p>
+                </div>
+              </div>
+
+              {/* In-Article Ad */}
+              <InArticleAd />
+              
+              <div 
+                className="blog-content"
+                dangerouslySetInnerHTML={{ __html: post.content }}
+              />
+
+              {/* Bottom Article Ad */}
+              <InArticleAd />
+            </article>
+
+            {/* Related Posts */}
+            {publishedPosts.length > 1 && (
+              <div className="mt-16 pt-8 border-t border-gray-700">
+                <h3 className="text-2xl font-bold text-white mb-6">Related Articles</h3>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {publishedPosts
+                    .filter(p => p.id !== post.id)
+                    .slice(0, 2)
+                    .map(relatedPost => (
+                      <BlogCard key={relatedPost.id} post={relatedPost} showAd={false} />
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar with Ads */}
+          <aside className="lg:col-span-4">
+            <div className="sticky top-20 space-y-8">
+              {/* Sidebar Ad */}
+              <SidebarAd />
+
+              {/* Popular Posts */}
+              <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4">Popular Posts</h3>
+                <div className="space-y-4">
+                  {publishedPosts.slice(0, 3).map((popularPost, idx) => (
+                    <div key={popularPost.id} 
+                      onClick={() => {
+                        setSelectedPost(popularPost);
+                        window.location.hash = `#/blog/${popularPost.slug}`;
+                        window.scrollTo(0, 0);
+                      }}
+                      className="flex gap-3 cursor-pointer group">
+                      <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
+                        <img src={popularPost.image} alt={popularPost.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold text-white line-clamp-2 group-hover:text-cyan-400 transition-colors">{popularPost.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1">{popularPost.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Another Sidebar Ad */}
+              <SidebarAd />
+
+              {/* Newsletter Signup */}
+              <div className="bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-gray-700 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-2">Subscribe to Newsletter</h3>
+                <p className="text-gray-400 text-sm mb-4">Get the latest AI tools and tips delivered to your inbox.</p>
+                <form onSubmit={handleSubscribe} className="space-y-3">
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email"
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm" required />
+                  <button type="submit" className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:from-cyan-400 hover:to-blue-400 text-sm">Subscribe</button>
+                </form>
+                {subscribed && <p className="mt-3 text-emerald-400 text-sm">✓ Thanks for subscribing!</p>}
+              </div>
+            </div>
+          </aside>
         </div>
-        <div className="flex items-center gap-4 mb-6">
-          <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-sm font-semibold rounded-lg">{post.category}</span>
-          <span className="text-gray-500 text-sm flex items-center gap-1"><Clock className="w-4 h-4" />{post.readTime}</span>
-          <span className="text-gray-500 text-sm flex items-center gap-1"><Calendar className="w-4 h-4" />{post.date}</span>
-        </div>
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">{post.title}</h1>
-        <div className="flex items-center gap-3 mb-8 pb-8 border-b border-gray-700">
-          <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center"><User className="w-5 h-5 text-white" /></div>
-          <div><p className="text-white font-medium">{post.author}</p><p className="text-gray-500 text-sm">Author</p></div>
-        </div>
-        <div 
-          className="prose prose-invert max-w-none prose-headings:text-white prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-xl prose-h3:font-bold prose-h3:mt-6 prose-h3:mb-3 prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4 prose-ul:list-disc prose-ul:list-inside prose-ul:space-y-2 prose-ul:text-gray-300 prose-ul:mb-4 prose-li:text-gray-300"
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
       </div>
     </div>
   );
@@ -402,13 +641,17 @@ export default function App() {
         ) : (
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(showAll ? publishedPosts : publishedPosts.slice(0, 3)).map(post => (
-                <BlogCard key={post.id} post={post} onClick={() => setSelectedPost(post)} />
+              {(showAll ? publishedPosts : publishedPosts.slice(0, 3)).map((post, idx) => (
+                <BlogCard 
+                  key={post.id} 
+                  post={post} 
+                  showAd={showAll && (idx + 1) % 6 === 0} // Show ad after every 6 posts
+                />
               ))}
             </div>
             {!showAll && publishedPosts.length > 3 && (
               <div className="text-center mt-10">
-                <button onClick={() => setCurrentPage('blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+                <button onClick={() => navigateTo('blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
                   Read More <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -475,6 +718,9 @@ export default function App() {
           <h1 className="text-4xl sm:text-5xl font-bold text-white mt-2 mb-6">Empowering Through AI</h1>
           <p className="text-xl text-gray-300">We're on a mission to make powerful AI tools accessible to everyone.</p>
         </div>
+        
+        <HeaderAd />
+        
         <div className="space-y-8">
           {[
             { icon: Bot, color: 'text-cyan-400', title: 'Our Mission', content: 'At AI Need Tools, we believe that artificial intelligence should be accessible, affordable, and easy to use for everyone.' },
@@ -520,8 +766,8 @@ export default function App() {
           <div>
             <h4 className="text-white font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => setCurrentPage('about')} className="text-gray-400 hover:text-cyan-400">About</button></li>
-              <li><button onClick={() => setCurrentPage('blog')} className="text-gray-400 hover:text-cyan-400">Blog</button></li>
+              <li><button onClick={() => navigateTo('about')} className="text-gray-400 hover:text-cyan-400">About</button></li>
+              <li><button onClick={() => navigateTo('blog')} className="text-gray-400 hover:text-cyan-400">Blog</button></li>
               <li><a href="mailto:contact@ai-need-tools.online" className="text-gray-400 hover:text-cyan-400">Contact</a></li>
             </ul>
           </div>
@@ -550,9 +796,199 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-900">
       <style>{`
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        @keyframes float { 
+          0%, 100% { transform: translateY(0); } 
+          50% { transform: translateY(-10px); } 
+        }
+        
+        .line-clamp-2 { 
+          display: -webkit-box; 
+          -webkit-line-clamp: 2; 
+          -webkit-box-orient: vertical; 
+          overflow: hidden; 
+        }
+        
+        /* Google Ads Container Styling */
+        .ad-container {
+          min-height: 90px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        /* Blog Content Styling */
+        .blog-content {
+          color: #d1d5db;
+          line-height: 1.8;
+          font-size: 1.0625rem;
+        }
+        
+        .blog-content h1 {
+          color: #fff;
+          font-size: 2.25rem;
+          font-weight: 700;
+          margin-top: 3rem;
+          margin-bottom: 1.5rem;
+          line-height: 1.2;
+        }
+        
+        .blog-content h2 {
+          color: #fff;
+          font-size: 1.875rem;
+          font-weight: 700;
+          margin-top: 2.5rem;
+          margin-bottom: 1.25rem;
+          line-height: 1.3;
+        }
+        
+        .blog-content h3 {
+          color: #fff;
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin-top: 2rem;
+          margin-bottom: 1rem;
+          line-height: 1.4;
+        }
+        
+        .blog-content h4 {
+          color: #f3f4f6;
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+        }
+        
+        .blog-content p {
+          color: #d1d5db;
+          margin-bottom: 1.5rem;
+          line-height: 1.8;
+        }
+        
+        .blog-content ul, .blog-content ol {
+          color: #d1d5db;
+          margin-bottom: 1.5rem;
+          padding-left: 2rem;
+          line-height: 1.8;
+        }
+        
+        .blog-content ul {
+          list-style-type: disc;
+        }
+        
+        .blog-content ol {
+          list-style-type: decimal;
+        }
+        
+        .blog-content li {
+          margin-bottom: 0.75rem;
+          padding-left: 0.5rem;
+        }
+        
+        .blog-content li::marker {
+          color: #06b6d4;
+        }
+        
+        .blog-content strong {
+          color: #fff;
+          font-weight: 600;
+        }
+        
+        .blog-content em {
+          font-style: italic;
+          color: #e5e7eb;
+        }
+        
+        .blog-content a {
+          color: #06b6d4;
+          text-decoration: underline;
+          transition: color 0.2s;
+        }
+        
+        .blog-content a:hover {
+          color: #22d3ee;
+        }
+        
+        .blog-content code {
+          background: #374151;
+          color: #06b6d4;
+          padding: 0.2rem 0.5rem;
+          border-radius: 0.25rem;
+          font-size: 0.9em;
+          font-family: 'Courier New', 'Consolas', monospace;
+        }
+        
+        .blog-content pre {
+          background: #1f2937;
+          padding: 1.25rem;
+          border-radius: 0.5rem;
+          overflow-x: auto;
+          margin-bottom: 1.5rem;
+          border: 1px solid #374151;
+        }
+        
+        .blog-content pre code {
+          background: transparent;
+          padding: 0;
+          color: #e5e7eb;
+        }
+        
+        .blog-content blockquote {
+          border-left: 4px solid #06b6d4;
+          padding-left: 1.25rem;
+          margin: 1.5rem 0;
+          color: #9ca3af;
+          font-style: italic;
+          background: #1f2937;
+          padding: 1rem 1.25rem;
+          border-radius: 0.25rem;
+        }
+        
+        .blog-content img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.75rem;
+          margin: 2rem 0;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .blog-content hr {
+          border: none;
+          border-top: 2px solid #374151;
+          margin: 2.5rem 0;
+        }
+        
+        .blog-content table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.5rem 0;
+          background: #1f2937;
+          border-radius: 0.5rem;
+          overflow: hidden;
+        }
+        
+        .blog-content th,
+        .blog-content td {
+          padding: 0.75rem 1rem;
+          text-align: left;
+          border-bottom: 1px solid #374151;
+        }
+        
+        .blog-content th {
+          background: #374151;
+          color: #fff;
+          font-weight: 600;
+        }
+        
+        .blog-content tr:last-child td {
+          border-bottom: none;
+        }
+        
+        /* Smooth scroll */
+        html {
+          scroll-behavior: smooth;
+        }
       `}</style>
+      
       <Navigation />
       {currentPage === 'home' && <HomePage />}
       {currentPage === 'tools' && <ToolsPage />}
