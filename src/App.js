@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { contentfulClient, transformContentfulPost } from './contentfulConfig';
 import { 
-  Mic, FileText, Image, Video, Bot, Sparkles, Zap, Shield, Globe,
+  Mic, FileText, Image, Video, Bot, Sparkles, Zap, Shield, Globe, 
   ArrowRight, ExternalLink, Menu, X, ChevronRight, Clock, User, 
   Tag, Search, Mail, Twitter, Github, Linkedin, Youtube,
   Cpu, Wand2, MessageSquare, BarChart3, Code, Layers,
-  Lock, Plus, Trash2, Edit, Save, Eye, EyeOff, LogOut, Calendar
+  Calendar
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -15,13 +15,6 @@ const SITE_CONFIG = {
   name: 'AI Need Tools',
   tagline: 'Your Hub for AI-Powered Solutions',
   domain: 'ai-need-tools.online',
-};
-
-// ⚠️ CHANGE THIS SECRET PATH AND CREDENTIALS! ⚠️
-const ADMIN_CONFIG = {
-  secretPath: 'dashboard-x7k9m2', // Access via: yoursite.com/#/dashboard-x7k9m2
-  username: 'admin',
-  password: 'AiTools2024!Secure', // CHANGE THIS!
 };
 
 // AI Tools Data
@@ -106,160 +99,6 @@ const AI_TOOLS = [
   },
 ];
 
-// Default Blog Posts
-const DEFAULT_BLOG_POSTS = [
-  {
-    id: 1,
-    title: 'The Future of AI-Powered Transcription: What to Expect in 2025',
-    excerpt: 'Discover how AI transcription technology is evolving and what new features will revolutionize the way we convert speech to text.',
-    content: `Artificial intelligence has transformed the transcription industry dramatically over the past few years. As we look ahead to 2025, several exciting developments are on the horizon that will further revolutionize how we convert speech to text.
-
-## Key Trends to Watch
-
-### 1. Real-time Accuracy Improvements
-AI models are becoming increasingly accurate, with error rates dropping below 5% for most languages. This means more reliable transcriptions with less need for manual correction.
-
-### 2. Multi-speaker Recognition
-Advanced speaker diarization will make it easier to identify and separate multiple speakers in a single recording, perfect for meetings and interviews.
-
-### 3. Emotion and Tone Detection
-Future transcription tools will not only capture what was said but also how it was said, including emotional context and tone.
-
-### 4. Integration with AI Assistants
-Expect seamless integration with AI assistants that can summarize, translate, and act on transcribed content automatically.
-
-## Conclusion
-
-The future of AI transcription is bright, and tools like Voxify are at the forefront of these innovations. Stay tuned for more updates as we continue to improve our service.`,
-    category: 'AI Trends',
-    author: 'AI Need Tools Team',
-    date: '2024-12-10',
-    readTime: '5 min read',
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop',
-    slug: 'future-of-ai-transcription-2025',
-    published: true,
-  },
-  {
-    id: 2,
-    title: 'How to Choose the Right AI Tool for Your Business',
-    excerpt: 'A comprehensive guide to evaluating and selecting AI tools that will actually drive results for your specific use case.',
-    content: `Choosing the right AI tool for your business can be overwhelming given the vast number of options available today. This guide will help you navigate the decision-making process.
-
-## Step 1: Define Your Goals
-
-Before exploring AI tools, clearly define what you want to achieve:
-- Increase productivity?
-- Reduce costs?
-- Improve customer experience?
-- Automate repetitive tasks?
-
-## Step 2: Evaluate Your Technical Requirements
-
-Consider your team's technical capabilities:
-- Do you need a no-code solution?
-- What integrations are required?
-- What's your data security requirement?
-
-## Step 3: Compare Features and Pricing
-
-Create a comparison matrix of potential tools:
-- Core features
-- Pricing structure
-- Scalability
-- Support options
-
-## Step 4: Test Before You Commit
-
-Always take advantage of free trials or demos. Most reputable AI tools, including Voxify, offer free tiers to test the service.
-
-## Conclusion
-
-The right AI tool can transform your business operations. Take your time to evaluate options and choose wisely.`,
-    category: 'Guides',
-    author: 'AI Need Tools Team',
-    date: '2024-12-08',
-    readTime: '8 min read',
-    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=400&fit=crop',
-    slug: 'choose-right-ai-tool-business',
-    published: true,
-  },
-  {
-    id: 3,
-    title: '10 Ways AI is Transforming Content Creation',
-    excerpt: 'From writing assistance to image generation, explore how artificial intelligence is reshaping the creative landscape.',
-    content: `Artificial intelligence is revolutionizing content creation in ways we never imagined. Here are 10 significant ways AI is transforming the creative landscape.
-
-## 1. Automated Writing Assistance
-AI writing tools help create blog posts, social media content, and marketing copy faster than ever.
-
-## 2. Image Generation
-Tools like DALL-E and Midjourney create stunning visuals from text descriptions.
-
-## 3. Video Editing Automation
-AI can automatically edit videos, add captions, and even generate video content from scripts.
-
-## 4. Audio Transcription
-Services like Voxify convert speech to text with remarkable accuracy.
-
-## 5. Translation Services
-AI-powered translation makes content accessible to global audiences instantly.
-
-## 6. SEO Optimization
-AI analyzes and optimizes content for search engines automatically.
-
-## 7. Personalization
-AI tailors content to individual user preferences and behaviors.
-
-## 8. Voice Synthesis
-AI can generate natural-sounding voiceovers for videos and podcasts.
-
-## 9. Content Curation
-AI helps discover and recommend relevant content for your audience.
-
-## 10. Analytics and Insights
-AI provides deep insights into content performance and audience engagement.
-
-## The Future
-
-As AI continues to evolve, we can expect even more innovative tools to emerge. The key is to embrace these technologies while maintaining the human creativity that makes content truly engaging.`,
-    category: 'AI Trends',
-    author: 'AI Need Tools Team',
-    date: '2024-12-05',
-    readTime: '6 min read',
-    image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&h=400&fit=crop',
-    slug: 'ai-transforming-content-creation',
-    published: true,
-  },
-];
-
-// Local Storage Helpers
-const storage = {
-  get: (key, defaultValue = null) => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  },
-  set: (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  remove: (key) => {
-    try {
-      localStorage.removeItem(key);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-};
-
 // Logo Component
 const Logo = ({ size = 40 }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
@@ -300,17 +139,9 @@ export default function App() {
   const [subscribed, setSubscribed] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   
-  // Blog posts state
+  // Blog posts state - Contentful integration
   const [blogPosts, setBlogPosts] = useState([]);
-  const [loadingPosts, setLoadingPosts] = useState(true);  
-  // Admin state
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminError, setAdminError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [editingPost, setEditingPost] = useState(null);
-  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
   const categories = ['all', ...new Set(AI_TOOLS.map(tool => tool.category))];
   const filteredTools = selectedCategory === 'all' ? AI_TOOLS : AI_TOOLS.filter(tool => tool.category === selectedCategory);
@@ -334,46 +165,20 @@ export default function App() {
       console.log('✅ Loaded posts from Contentful:', transformedPosts.length);
     } catch (error) {
       console.error('❌ Error fetching from Contentful:', error);
-      // Fallback to default posts if Contentful fails
-      setBlogPosts(DEFAULT_BLOG_POSTS);
+      setBlogPosts([]);
     } finally {
       setLoadingPosts(false);
     }
   };
 
-  // Check URL hash for admin
-  useEffect(() => {
-    const checkHash = () => {
-      const hash = window.location.hash.slice(2);
-      if (hash === ADMIN_CONFIG.secretPath) setCurrentPage('admin');
-    };
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
-
   const handleSubscribe = (e) => {
     e.preventDefault();
-    if (email) { setSubscribed(true); setEmail(''); setTimeout(() => setSubscribed(false), 3000); }
+    if (email) { 
+      setSubscribed(true); 
+      setEmail(''); 
+      setTimeout(() => setSubscribed(false), 3000); 
+    }
   };
-
-  const handleAdminLogin = (e) => {
-    e.preventDefault();
-    if (adminUsername === ADMIN_CONFIG.username && adminPassword === ADMIN_CONFIG.password) {
-      setIsAdminLoggedIn(true); setAdminError(''); setAdminUsername(''); setAdminPassword('');
-    } else { setAdminError('Invalid credentials'); }
-  };
-
-  const handleAdminLogout = () => { setIsAdminLoggedIn(false); setCurrentPage('home'); window.location.hash = ''; };
-
-  const createPost = (postData) => {
-    const newPost = { ...postData, id: Date.now(), date: new Date().toISOString().split('T')[0], slug: postData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') };
-    setBlogPosts([newPost, ...blogPosts]); setIsCreatingPost(false);
-  };
-
-  const updatePost = (postId, postData) => { setBlogPosts(blogPosts.map(post => post.id === postId ? { ...post, ...postData } : post)); setEditingPost(null); };
-  const deletePost = (postId) => { if (window.confirm('Delete this post?')) setBlogPosts(blogPosts.filter(post => post.id !== postId)); };
-  const togglePublish = (postId) => { setBlogPosts(blogPosts.map(post => post.id === postId ? { ...post, published: !post.published } : post)); };
 
   // Navigation
   const Navigation = () => (
@@ -406,7 +211,7 @@ export default function App() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4">
           {['home', 'tools', 'blog', 'about'].map(page => (
-            <button key={page} onClick={() => { setCurrentPage(page); setMobileMenuOpen(false); }}
+            <button key={page} onClick={() => { setCurrentPage(page); setMobileMenuOpen(false); setSelectedPost(null); }}
               className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400 capitalize">
               {page === 'tools' ? 'AI Tools' : page}
             </button>
@@ -571,8 +376,10 @@ export default function App() {
           className="prose prose-invert max-w-none prose-headings:text-white prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-xl prose-h3:font-bold prose-h3:mt-6 prose-h3:mb-3 prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4 prose-ul:list-disc prose-ul:list-inside prose-ul:space-y-2 prose-ul:text-gray-300 prose-ul:mb-4 prose-li:text-gray-300"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
+      </div>
+    </div>
+  );
 
-  // Blog Section
   // Blog Section
   const BlogSection = ({ showAll = false }) => (
     <section className="py-20">
@@ -590,7 +397,7 @@ export default function App() {
           </div>
         ) : publishedPosts.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-400">No blog posts available yet.</p>
+            <p className="text-gray-400">No blog posts available yet. Add some posts in Contentful!</p>
           </div>
         ) : (
           <>
@@ -686,154 +493,6 @@ export default function App() {
     </div>
   );
 
-  // Admin Login
-  const AdminLoginPage = () => (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-gray-900">
-      <div className="w-full max-w-md">
-        <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Admin Login</h1>
-            <p className="text-gray-400 text-sm mt-2">Enter your credentials</p>
-          </div>
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
-              <input type="text" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:outline-none focus:border-cyan-500" placeholder="Username" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-              <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:outline-none focus:border-cyan-500 pr-12" placeholder="Password" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-            {adminError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{adminError}</div>}
-            <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover:from-cyan-400 hover:to-blue-400">Login</button>
-          </form>
-          <button onClick={() => { setCurrentPage('home'); window.location.hash = ''; }}
-            className="w-full mt-4 py-3 border border-gray-600 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white">Back to Home</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Blog Editor
-  const BlogEditor = ({ post, onSave, onCancel }) => {
-    const [formData, setFormData] = useState({
-      title: post?.title || '', excerpt: post?.excerpt || '', content: post?.content || '',
-      category: post?.category || 'AI Trends', author: post?.author || 'AI Need Tools Team',
-      readTime: post?.readTime || '5 min read', image: post?.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop',
-      published: post?.published ?? false,
-    });
-    return (
-      <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
-        <h2 className="text-xl font-bold text-white mb-6">{post ? 'Edit Post' : 'Create New Post'}</h2>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
-            <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:border-cyan-500" required /></div>
-          <div><label className="block text-sm font-medium text-gray-300 mb-2">Excerpt</label>
-            <textarea value={formData.excerpt} onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white resize-none focus:border-cyan-500" rows="2" required /></div>
-          <div><label className="block text-sm font-medium text-gray-300 mb-2">Content (Markdown)</label>
-            <textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white resize-none font-mono text-sm focus:border-cyan-500" rows="12" required /></div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:border-cyan-500">
-                {['AI Trends', 'Guides', 'Tutorials', 'News', 'Product Updates'].map(c => <option key={c}>{c}</option>)}
-              </select></div>
-            <div><label className="block text-sm font-medium text-gray-300 mb-2">Read Time</label>
-              <input type="text" value={formData.readTime} onChange={(e) => setFormData({ ...formData, readTime: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:border-cyan-500" /></div>
-          </div>
-          <div><label className="block text-sm font-medium text-gray-300 mb-2">Image URL</label>
-            <input type="url" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white focus:border-cyan-500" required /></div>
-          <div className="flex items-center gap-3">
-            <input type="checkbox" id="published" checked={formData.published} onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-              className="w-5 h-5 rounded bg-gray-900 border-gray-600 text-cyan-500" />
-            <label htmlFor="published" className="text-gray-300">Publish immediately</label>
-          </div>
-          <div className="flex gap-3 pt-4">
-            <button type="submit" className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2">
-              <Save className="w-5 h-5" /> Save Post</button>
-            <button type="button" onClick={onCancel} className="px-6 py-3 border border-gray-600 text-gray-400 rounded-xl hover:bg-gray-700 hover:text-white">Cancel</button>
-          </div>
-        </form>
-      </div>
-    );
-  };
-
-  // Admin Dashboard
-  const AdminDashboard = () => (
-    <div className="min-h-screen pt-20 pb-12 bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div><h1 className="text-2xl font-bold text-white">Admin Dashboard</h1><p className="text-gray-400">Manage your blog posts</p></div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => { setCurrentPage('home'); window.location.hash = ''; }} className="text-gray-400 hover:text-white">View Site</button>
-            <button onClick={handleAdminLogout} className="px-4 py-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 flex items-center gap-2">
-              <LogOut className="w-4 h-4" /> Logout</button>
-          </div>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-4 mb-8">
-          {[{ val: blogPosts.length, label: 'Total Posts', color: 'text-white' }, { val: publishedPosts.length, label: 'Published', color: 'text-emerald-400' }, { val: blogPosts.length - publishedPosts.length, label: 'Drafts', color: 'text-amber-400' }].map((s, i) => (
-            <div key={i} className="bg-gray-800/50 border border-gray-700 rounded-xl p-5">
-              <div className={`text-3xl font-bold ${s.color}`}>{s.val}</div><div className="text-gray-400 text-sm">{s.label}</div>
-            </div>
-          ))}
-        </div>
-        {isCreatingPost ? <BlogEditor onSave={createPost} onCancel={() => setIsCreatingPost(false)} />
-        : editingPost ? <BlogEditor post={editingPost} onSave={(data) => updatePost(editingPost.id, data)} onCancel={() => setEditingPost(null)} />
-        : (
-          <>
-            <button onClick={() => setIsCreatingPost(true)}
-              className="w-full mb-6 py-4 bg-gray-800/50 border-2 border-dashed border-gray-600 rounded-xl text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 flex items-center justify-center gap-2">
-              <Plus className="w-5 h-5" /> Create New Post
-            </button>
-            <div className="bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-700"><h2 className="text-lg font-bold text-white">All Posts</h2></div>
-              <div className="divide-y divide-gray-700">
-                {blogPosts.map(post => (
-                  <div key={post.id} className="p-4 hover:bg-gray-700/30">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-white truncate">{post.title}</h3>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded ${post.published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                            {post.published ? 'Published' : 'Draft'}
-                          </span>
-                        </div>
-                        <p className="text-gray-400 text-sm truncate">{post.excerpt}</p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500"><span>{post.category}</span><span>•</span><span>{post.date}</span></div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => togglePublish(post.id)} className={`p-2 rounded-lg ${post.published ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-gray-500 hover:bg-gray-600'}`}>
-                          {post.published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </button>
-                        <button onClick={() => setEditingPost(post)} className="p-2 text-gray-400 hover:text-cyan-400 hover:bg-gray-600 rounded-lg"><Edit className="w-4 h-4" /></button>
-                        <button onClick={() => deletePost(post.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
   // Footer
   const Footer = () => (
     <footer className="bg-gray-900 border-t border-gray-800 py-12">
@@ -894,14 +553,12 @@ export default function App() {
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       `}</style>
-      <>
-        <Navigation />
-        {currentPage === 'home' && <HomePage />}
-        {currentPage === 'tools' && <ToolsPage />}
-        {currentPage === 'blog' && <BlogPage />}
-        {currentPage === 'about' && <AboutPage />}
-        <Footer />
-      </>      )}
+      <Navigation />
+      {currentPage === 'home' && <HomePage />}
+      {currentPage === 'tools' && <ToolsPage />}
+      {currentPage === 'blog' && <BlogPage />}
+      {currentPage === 'about' && <AboutPage />}
+      <Footer />
     </div>
   );
 }
