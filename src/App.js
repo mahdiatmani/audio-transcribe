@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { contentfulClient, transformContentfulPost } from './contentfulConfig';
 import { 
-  Mic, FileText, Image, Video, Bot, Sparkles, Zap, Shield, Globe, 
+  Mic, FileText, Image, Video, Bot, Sparkles, Zap, Shield, Globe,
   ArrowRight, ExternalLink, Menu, X, ChevronRight, Clock, User, 
   Tag, Search, Mail, Twitter, Github, Linkedin, Youtube,
   Cpu, Wand2, MessageSquare, BarChart3, Code, Layers,
@@ -300,8 +301,8 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState(null);
   
   // Blog posts state
-  const [blogPosts, setBlogPosts] = useState(() => storage.get('aineedtools_blogs') || DEFAULT_BLOG_POSTS);
-  
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);  
   // Admin state
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUsername, setAdminUsername] = useState('');
@@ -315,8 +316,30 @@ export default function App() {
   const filteredTools = selectedCategory === 'all' ? AI_TOOLS : AI_TOOLS.filter(tool => tool.category === selectedCategory);
   const publishedPosts = blogPosts.filter(post => post.published);
 
-  // Save blog posts
-  useEffect(() => { storage.set('aineedtools_blogs', blogPosts); }, [blogPosts]);
+  // Fetch blog posts from Contentful
+  useEffect(() => {
+    fetchContentfulPosts();
+  }, []);
+
+  const fetchContentfulPosts = async () => {
+    try {
+      setLoadingPosts(true);
+      const response = await contentfulClient.getEntries({
+        content_type: 'blogPost',
+        order: '-sys.createdAt',
+      });
+      
+      const transformedPosts = response.items.map(transformContentfulPost);
+      setBlogPosts(transformedPosts);
+      console.log('✅ Loaded posts from Contentful:', transformedPosts.length);
+    } catch (error) {
+      console.error('❌ Error fetching from Contentful:', error);
+      // Fallback to default posts if Contentful fails
+      setBlogPosts(DEFAULT_BLOG_POSTS);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
 
   // Check URL hash for admin
   useEffect(() => {
@@ -544,18 +567,12 @@ export default function App() {
           <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center"><User className="w-5 h-5 text-white" /></div>
           <div><p className="text-white font-medium">{post.author}</p><p className="text-gray-500 text-sm">Author</p></div>
         </div>
-        <div className="prose prose-invert max-w-none">
-          {post.content.split('\n\n').map((p, i) => {
-            if (p.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold text-white mt-8 mb-4">{p.replace('## ', '')}</h2>;
-            if (p.startsWith('### ')) return <h3 key={i} className="text-xl font-bold text-white mt-6 mb-3">{p.replace('### ', '')}</h3>;
-            if (p.startsWith('- ')) return <ul key={i} className="list-disc list-inside space-y-2 text-gray-300 mb-4">{p.split('\n').map((item, j) => <li key={j}>{item.replace('- ', '')}</li>)}</ul>;
-            return <p key={i} className="text-gray-300 leading-relaxed mb-4">{p}</p>;
-          })}
-        </div>
-      </div>
-    </div>
-  );
+        <div 
+          className="prose prose-invert max-w-none prose-headings:text-white prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-xl prose-h3:font-bold prose-h3:mt-6 prose-h3:mb-3 prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4 prose-ul:list-disc prose-ul:list-inside prose-ul:space-y-2 prose-ul:text-gray-300 prose-ul:mb-4 prose-li:text-gray-300"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
 
+  // Blog Section
   // Blog Section
   const BlogSection = ({ showAll = false }) => (
     <section className="py-20">
@@ -565,15 +582,31 @@ export default function App() {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mt-2 mb-4">Latest Insights</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">Stay updated with the latest trends, tips, and news in the world of AI.</p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {publishedPosts.map(post => <BlogCard key={post.id} post={post} onClick={() => setSelectedPost(post)} />)}
-        </div>
-        {!showAll && publishedPosts.length > 3 && (
-          <div className="text-center mt-10">
-            <button onClick={() => setCurrentPage('blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
-              Read More <ArrowRight className="w-4 h-4" />
-            </button>
+        
+        {loadingPosts ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-400 mt-4">Loading posts from Contentful...</p>
           </div>
+        ) : publishedPosts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-400">No blog posts available yet.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(showAll ? publishedPosts : publishedPosts.slice(0, 3)).map(post => (
+                <BlogCard key={post.id} post={post} onClick={() => setSelectedPost(post)} />
+              ))}
+            </div>
+            {!showAll && publishedPosts.length > 3 && (
+              <div className="text-center mt-10">
+                <button onClick={() => setCurrentPage('blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+                  Read More <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
@@ -861,7 +894,7 @@ export default function App() {
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       `}</style>
-      {currentPage === 'admin' ? (isAdminLoggedIn ? <AdminDashboard /> : <AdminLoginPage />) : (
+      {(
         <><Navigation />{currentPage === 'home' && <HomePage />}{currentPage === 'tools' && <ToolsPage />}{currentPage === 'blog' && <BlogPage />}{currentPage === 'about' && <AboutPage />}<Footer /></>
       )}
     </div>
