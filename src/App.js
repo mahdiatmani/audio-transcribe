@@ -1619,7 +1619,7 @@ export default function AudioTranscriptionSaaS() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-900 mb-1">Support</h3>
-                    <p className="text-slate-600 text-sm">support@voxify.com</p>
+                    <p className="text-slate-600 text-sm">support@ai-need-tools.online</p>
                     <p className="text-slate-500 text-xs mt-1">We typically respond within 24 hours</p>
                   </div>
                 </div>
@@ -1632,7 +1632,7 @@ export default function AudioTranscriptionSaaS() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-900 mb-1">Sales</h3>
-                    <p className="text-slate-600 text-sm">sales@voxify.com</p>
+                    <p className="text-slate-600 text-sm">sales@ai-need-tools.online</p>
                     <p className="text-slate-500 text-xs mt-1">For enterprise inquiries</p>
                   </div>
                 </div>
