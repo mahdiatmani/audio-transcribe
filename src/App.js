@@ -1539,22 +1539,33 @@ export default function AudioTranscriptionSaaS() {
       setContactError('');
       setIsSubmitting(true);
 
+      const payload = {
+        name: contactName,
+        email: contactEmail,
+        message: contactMessage,
+      };
+
+      console.log('🔔 Contact form submitted');
+      console.log('📡 API URL:', `${API_BASE_URL}/api/contact`);
+      console.log('📦 Payload:', payload);
+
       try {
         const response = await fetch(`${API_BASE_URL}/api/contact`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            name: contactName,
-            email: contactEmail,
-            message: contactMessage,
-          }),
+          body: JSON.stringify(payload),
         });
 
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response ok:', response.ok);
+
         const data = await response.json();
+        console.log('📥 Response data:', data);
 
         if (response.ok) {
+          console.log('✅ Contact form sent successfully!');
           setContactSubmitted(true);
           setTimeout(() => {
             setContactSubmitted(false);
@@ -1563,9 +1574,11 @@ export default function AudioTranscriptionSaaS() {
             setContactMessage('');
           }, 5000);
         } else {
+          console.error('❌ Server error:', data.detail);
           setContactError(data.detail || 'Failed to send message. Please try again.');
         }
       } catch (err) {
+        console.error('❌ Network error:', err);
         setContactError('Connection error. Please try again or email us directly at support@ai-need-tools.online');
       } finally {
         setIsSubmitting(false);
