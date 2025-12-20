@@ -1531,18 +1531,58 @@ export default function AudioTranscriptionSaaS() {
     const [contactName, setContactName] = useState('');
     const [contactMessage, setContactMessage] = useState('');
     const [contactSubmitted, setContactSubmitted] = useState(false);
+    const [contactError, setContactError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleContactSubmit = (e) => {
+    const handleContactSubmit = async (e) => {
       e.preventDefault();
-      // For now, just show success message
-      // In production, this would send to a backend endpoint
-      setContactSubmitted(true);
-      setTimeout(() => {
-        setContactSubmitted(false);
-        setContactEmail('');
-        setContactName('');
-        setContactMessage('');
-      }, 3000);
+      setContactError('');
+      setIsSubmitting(true);
+
+      const payload = {
+        name: contactName,
+        email: contactEmail,
+        message: contactMessage,
+      };
+
+      console.log('🔔 Contact form submitted');
+      console.log('📡 API URL:', `${API_BASE_URL}/api/contact`);
+      console.log('📦 Payload:', payload);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response ok:', response.ok);
+
+        const data = await response.json();
+        console.log('📥 Response data:', data);
+
+        if (response.ok) {
+          console.log('✅ Contact form sent successfully!');
+          setContactSubmitted(true);
+          setTimeout(() => {
+            setContactSubmitted(false);
+            setContactEmail('');
+            setContactName('');
+            setContactMessage('');
+          }, 5000);
+        } else {
+          console.error('❌ Server error:', data.detail);
+          setContactError(data.detail || 'Failed to send message. Please try again.');
+        }
+      } catch (err) {
+        console.error('❌ Network error:', err);
+        setContactError('Connection error. Please try again or email us directly at support@ai-need-tools.online');
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     return (
@@ -1601,11 +1641,26 @@ export default function AudioTranscriptionSaaS() {
                     />
                   </div>
 
+                  {contactError && (
+                    <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                      <p className="text-sm text-red-700">{contactError}</p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Send Message
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Message'
+                    )}
                   </button>
                 </form>
               )}
