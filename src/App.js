@@ -1197,6 +1197,8 @@ export default function AudioTranscriptionSaaS() {
               <>
                 <button onClick={() => setCurrentPage('home')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Home</button>
                 <button onClick={() => setCurrentPage('pricing')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Pricing</button>
+                <button onClick={() => setCurrentPage('about')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">About</button>
+                <button onClick={() => setCurrentPage('contact')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Contact</button>
               </>
             ) : isLoggedIn && (
               <>
@@ -1238,6 +1240,8 @@ export default function AudioTranscriptionSaaS() {
             <>
               <button onClick={() => { setCurrentPage('home'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Home</button>
               <button onClick={() => { setCurrentPage('pricing'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Pricing</button>
+              <button onClick={() => { setCurrentPage('about'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">About</button>
+              <button onClick={() => { setCurrentPage('contact'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Contact</button>
               <button onClick={() => { setShowAuthModal(true); setMobileMenuOpen(false); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium">Get Started</button>
             </>
           ) : isLoggedIn ? (
@@ -1432,6 +1436,244 @@ export default function AudioTranscriptionSaaS() {
   const PricingPage = () => <div className="min-h-screen bg-slate-50 pt-16"><div className="max-w-4xl mx-auto px-4 py-16 text-center"><h1 className="text-4xl font-bold mb-4">Pricing</h1><p className="text-slate-600">Coming soon...</p></div></div>;
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ABOUT US PAGE
+  // ═══════════════════════════════════════════════════════════════════════════
+  const AboutPage = () => (
+    <div className="min-h-screen bg-slate-50 pt-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">About Voxify</h1>
+          <p className="text-xl text-slate-600">Transforming audio into text with AI precision</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-4">Our Mission</h2>
+          <p className="text-slate-700 leading-relaxed mb-4">
+            At Voxify, we believe that audio content should be accessible to everyone. Our mission is to provide
+            fast, accurate, and affordable transcription services powered by cutting-edge AI technology.
+          </p>
+          <p className="text-slate-700 leading-relaxed">
+            Whether you're a journalist transcribing interviews, a student recording lectures, or a business
+            professional documenting meetings, Voxify makes it easy to convert speech into searchable,
+            editable text in seconds.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+              <Zap className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Lightning Fast</h3>
+            <p className="text-slate-600">
+              Our Fast Mode uses optimized AI models to deliver transcriptions up to 2x faster,
+              perfect for quick turnarounds.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Maximum Accuracy</h3>
+            <p className="text-slate-600">
+              Quality Mode leverages Whisper Large v3 for professional-grade transcriptions with
+              industry-leading accuracy.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+              <Languages className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">30+ Languages</h3>
+            <p className="text-slate-600">
+              Support for over 30 languages with automatic language detection, making Voxify
+              perfect for global teams.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
+              <User className="w-6 h-6 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">User-Friendly</h3>
+            <p className="text-slate-600">
+              Simple, intuitive interface that works seamlessly across all devices. Upload files
+              or record directly in your browser.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Ready to Get Started?</h2>
+          <p className="text-slate-300 mb-6">
+            Join thousands of users who trust Voxify for their transcription needs
+          </p>
+          <button
+            onClick={() => { setShowAuthModal(true); setAuthMode('signup'); }}
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-3 rounded-full font-semibold hover:from-emerald-600 hover:to-teal-600"
+          >
+            Start Free Trial
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONTACT US PAGE
+  // ═══════════════════════════════════════════════════════════════════════════
+  const ContactPage = () => {
+    const [contactEmail, setContactEmail] = useState('');
+    const [contactName, setContactName] = useState('');
+    const [contactMessage, setContactMessage] = useState('');
+    const [contactSubmitted, setContactSubmitted] = useState(false);
+
+    const handleContactSubmit = (e) => {
+      e.preventDefault();
+      // For now, just show success message
+      // In production, this would send to a backend endpoint
+      setContactSubmitted(true);
+      setTimeout(() => {
+        setContactSubmitted(false);
+        setContactEmail('');
+        setContactName('');
+        setContactMessage('');
+      }, 3000);
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 pt-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Contact Us</h1>
+            <p className="text-xl text-slate-600">We'd love to hear from you</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Get in Touch</h2>
+
+              {contactSubmitted ? (
+                <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+                  <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-emerald-900 mb-2">Message Sent!</h3>
+                  <p className="text-emerald-700">We'll get back to you soon.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                    <input
+                      type="text"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      placeholder="Your name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Message</label>
+                    <textarea
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      required
+                      rows="5"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                      placeholder="How can we help you?"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all"
+                  >
+                    Send Message
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-1">Support</h3>
+                    <p className="text-slate-600 text-sm">support@voxify.com</p>
+                    <p className="text-slate-500 text-xs mt-1">We typically respond within 24 hours</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-1">Sales</h3>
+                    <p className="text-slate-600 text-sm">sales@voxify.com</p>
+                    <p className="text-slate-500 text-xs mt-1">For enterprise inquiries</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-1">Help Center</h3>
+                    <p className="text-slate-600 text-sm">Find answers to common questions</p>
+                    <button
+                      onClick={() => setCurrentPage('home')}
+                      className="text-emerald-600 hover:text-emerald-700 text-sm font-medium mt-2"
+                    >
+                      Visit Help Center →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl p-6 text-white">
+                <h3 className="font-semibold mb-2">Need Immediate Help?</h3>
+                <p className="text-emerald-50 text-sm mb-4">
+                  Check out our documentation and FAQs for quick answers
+                </p>
+                <button
+                  onClick={() => setCurrentPage('home')}
+                  className="bg-white text-emerald-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-emerald-50 transition-colors"
+                >
+                  View Documentation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
@@ -1456,6 +1698,8 @@ export default function AudioTranscriptionSaaS() {
         <>
           {currentPage === 'home' && <HomePage />}
           {currentPage === 'pricing' && <PricingPage />}
+          {currentPage === 'about' && <AboutPage />}
+          {currentPage === 'contact' && <ContactPage />}
         </>
       )}
     </div>
