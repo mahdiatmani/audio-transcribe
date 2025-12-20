@@ -1531,18 +1531,45 @@ export default function AudioTranscriptionSaaS() {
     const [contactName, setContactName] = useState('');
     const [contactMessage, setContactMessage] = useState('');
     const [contactSubmitted, setContactSubmitted] = useState(false);
+    const [contactError, setContactError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleContactSubmit = (e) => {
+    const handleContactSubmit = async (e) => {
       e.preventDefault();
-      // For now, just show success message
-      // In production, this would send to a backend endpoint
-      setContactSubmitted(true);
-      setTimeout(() => {
-        setContactSubmitted(false);
-        setContactEmail('');
-        setContactName('');
-        setContactMessage('');
-      }, 3000);
+      setContactError('');
+      setIsSubmitting(true);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/contact`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: contactName,
+            email: contactEmail,
+            message: contactMessage,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setContactSubmitted(true);
+          setTimeout(() => {
+            setContactSubmitted(false);
+            setContactEmail('');
+            setContactName('');
+            setContactMessage('');
+          }, 5000);
+        } else {
+          setContactError(data.detail || 'Failed to send message. Please try again.');
+        }
+      } catch (err) {
+        setContactError('Connection error. Please try again or email us directly at support@ai-need-tools.online');
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     return (
@@ -1601,11 +1628,26 @@ export default function AudioTranscriptionSaaS() {
                     />
                   </div>
 
+                  {contactError && (
+                    <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                      <p className="text-sm text-red-700">{contactError}</p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Send Message
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Message'
+                    )}
                   </button>
                 </form>
               )}
