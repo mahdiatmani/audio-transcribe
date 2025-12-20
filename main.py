@@ -887,8 +887,18 @@ async def send_contact_email(contact: ContactRequest):
     """
     Receive contact form submissions and send email to support@ai-need-tools.online
     """
+    # Add these debug logs at the start
+    print(f"🔔 Contact form received from: {contact.name} <{contact.email}>")
+    print(f"📧 SMTP_SERVER: {SMTP_SERVER}")
+    print(f"📧 SMTP_PORT: {SMTP_PORT}")
+    print(f"📧 SMTP_USERNAME: {SMTP_USERNAME}")
+    print(f"📧 SMTP_PASSWORD: {'SET (len=' + str(len(SMTP_PASSWORD)) + ')' if SMTP_PASSWORD else 'NOT SET'}")
+    print(f"📧 CONTACT_EMAIL: {CONTACT_EMAIL}")
+    
     try:
         if not SMTP_USERNAME or not SMTP_PASSWORD:
+            error_msg = f"Email service not configured. SMTP_USERNAME: {bool(SMTP_USERNAME)}, SMTP_PASSWORD: {bool(SMTP_PASSWORD)}"
+            print(f"❌ {error_msg}")
             raise HTTPException(
                 status_code=500, 
                 detail="Email service not configured"
@@ -951,9 +961,15 @@ Reply to: {contact.email}
         msg.attach(part2)
         
         # Send email
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        print(f"📡 Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            print("🔐 Starting TLS...")
             server.starttls()
+            
+            print("🔑 Logging in...")
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            
+            print(f"📨 Sending email to {CONTACT_EMAIL}...")
             server.send_message(msg)
         
         print(f"✅ Contact email sent from {contact.name} ({contact.email})")
@@ -963,18 +979,30 @@ Reply to: {contact.email}
             "message": "Your message has been sent successfully! We'll get back to you soon."
         }
     
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"SMTP Authentication failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        raise HTTPException(
+            status_code=500,
+            detail="Email authentication failed. Please contact support."
+        )
     except smtplib.SMTPException as e:
-        print(f"❌ SMTP Error: {str(e)}")
+        error_msg = f"SMTP Error: {str(e)}"
+        print(f"❌ {error_msg}")
         raise HTTPException(
             status_code=500,
             detail="Failed to send email. Please try again or contact us directly at support@ai-need-tools.online"
         )
     except Exception as e:
-        print(f"❌ Error sending contact email: {str(e)}")
+        error_msg = f"Error sending contact email: {type(e).__name__}: {str(e)}"
+        print(f"❌ {error_msg}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail="An error occurred while sending your message. Please try again."
         )
+
 
 # -------------------------------------------------
 # Run server
