@@ -15,6 +15,9 @@ from psycopg2.pool import SimpleConnectionPool
 from contextlib import contextmanager
 import io
 from pydub import AudioSegment
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # -------------------------------------------------
 # Environment & basic config
@@ -37,6 +40,12 @@ PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET")
 PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")  # "sandbox" or "live"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+# Email Configuration for Contact Form
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "support@ai-need-tools.online")
 # PayPal API URLs
 PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com" if PAYPAL_MODE == "sandbox" else "https://api-m.paypal.com"
 
@@ -122,7 +131,11 @@ def get_db_conn():
         raise
     finally:
         db_pool.putconn(conn)
-
+        
+class ContactRequest(BaseModel):
+    name: str
+    email: EmailStr
+    message: str
 # -------------------------------------------------
 # Pydantic models
 # -------------------------------------------------
@@ -868,6 +881,100 @@ async def get_user_stats(user_data: dict = Depends(verify_token)):
 async def get_transcription_history(limit: int = 10, user_data: dict = Depends(verify_token)):
     email = user_data.get("email")
     return db_get_transcription_history(email, limit=limit)
+# -------- Contact Form Endpoint --------
+@app.post("/api/contact")
+async def send_contact_email(contact: ContactRequest):
+    """
+    Receive contact form submissions and send email to support@ai-need-tools.online
+    """
+    try:
+        if not SMTP_USERNAME or not SMTP_PASSWORD:
+            raise HTTPException(
+                status_code=500, 
+                detail="Email service not configured"
+            )
+        
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"Voxify Contact Form <{SMTP_USERNAME}>"
+        msg['To'] = CONTACT_EMAIL
+        msg['Subject'] = f"📧 Contact Form: {contact.name}"
+        msg['Reply-To'] = contact.email
+        
+        # Plain text version
+        text_content = f"""
+New Contact Form Submission from Voxify
+
+From: {contact.name}
+Email: {contact.email}
+
+Message:
+{contact.message}
+
+---
+Sent from Voxify Contact Form
+Reply to: {contact.email}
+        """
+        
+        # HTML version
+        html_content = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 10px;">
+              <h2 style="color: #10b981; margin-bottom: 20px;">📧 New Contact Form Submission</h2>
+              
+              <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                <p style="margin: 10px 0;"><strong>From:</strong> {contact.name}</p>
+                <p style="margin: 10px 0;"><strong>Email:</strong> <a href="mailto:{contact.email}">{contact.email}</a></p>
+              </div>
+              
+              <div style="background-color: white; padding: 20px; border-radius: 8px;">
+                <p style="margin: 10px 0;"><strong>Message:</strong></p>
+                <p style="white-space: pre-wrap; background-color: #f3f4f6; padding: 15px; border-radius: 5px; border-left: 4px solid #10b981;">
+{contact.message}
+                </p>
+              </div>
+              
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
+                <p>Sent from Voxify Contact Form</p>
+                <p>Reply directly to <a href="mailto:{contact.email}">{contact.email}</a></p>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
+        
+        # Attach both versions
+        part1 = MIMEText(text_content, 'plain')
+        part2 = MIMEText(html_content, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+        
+        print(f"✅ Contact email sent from {contact.name} ({contact.email})")
+        
+        return {
+            "success": True,
+            "message": "Your message has been sent successfully! We'll get back to you soon."
+        }
+    
+    except smtplib.SMTPException as e:
+        print(f"❌ SMTP Error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send email. Please try again or contact us directly at support@ai-need-tools.online"
+        )
+    except Exception as e:
+        print(f"❌ Error sending contact email: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while sending your message. Please try again."
+        )
 
 # -------------------------------------------------
 # Run server
