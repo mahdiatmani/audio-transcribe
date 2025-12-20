@@ -1197,6 +1197,7 @@ export default function AudioTranscriptionSaaS() {
               <>
                 <button onClick={() => setCurrentPage('home')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Home</button>
                 <button onClick={() => setCurrentPage('pricing')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Pricing</button>
+                <button onClick={() => setCurrentPage('docs')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Docs</button>
                 <button onClick={() => setCurrentPage('about')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">About</button>
                 <button onClick={() => setCurrentPage('contact')} className="text-sm font-medium text-slate-600 hover:text-emerald-600">Contact</button>
               </>
@@ -1240,6 +1241,7 @@ export default function AudioTranscriptionSaaS() {
             <>
               <button onClick={() => { setCurrentPage('home'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Home</button>
               <button onClick={() => { setCurrentPage('pricing'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Pricing</button>
+              <button onClick={() => { setCurrentPage('docs'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Docs</button>
               <button onClick={() => { setCurrentPage('about'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">About</button>
               <button onClick={() => { setCurrentPage('contact'); setMobileMenuOpen(false); }} className="block w-full text-left py-2">Contact</button>
               <button onClick={() => { setShowAuthModal(true); setMobileMenuOpen(false); }} className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium">Get Started</button>
@@ -1674,6 +1676,317 @@ export default function AudioTranscriptionSaaS() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // DOCUMENTATION PAGE
+  // ═══════════════════════════════════════════════════════════════════════════
+  const DocumentationPage = () => {
+    const [openSection, setOpenSection] = useState('getting-started');
+
+    const toggleSection = (section) => {
+      setOpenSection(openSection === section ? null : section);
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 pt-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Documentation</h1>
+            <p className="text-xl text-slate-600">Everything you need to know about using Voxify</p>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Sidebar Navigation */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-20">
+                <h3 className="font-semibold text-slate-900 mb-4">Quick Links</h3>
+                <nav className="space-y-2">
+                  <button onClick={() => toggleSection('getting-started')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'getting-started' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    Getting Started
+                  </button>
+                  <button onClick={() => toggleSection('features')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'features' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    Features
+                  </button>
+                  <button onClick={() => toggleSection('modes')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'modes' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    Transcription Modes
+                  </button>
+                  <button onClick={() => toggleSection('languages')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'languages' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    Supported Languages
+                  </button>
+                  <button onClick={() => toggleSection('pricing')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'pricing' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    Pricing & Plans
+                  </button>
+                  <button onClick={() => toggleSection('faq')} className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${openSection === 'faq' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    FAQ
+                  </button>
+                </nav>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Getting Started */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Getting Started</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="border-l-4 border-emerald-500 pl-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">1. Create Your Account</h3>
+                    <p className="text-slate-700">Sign up for a free account to get started. No credit card required for the free tier.</p>
+                  </div>
+
+                  <div className="border-l-4 border-emerald-500 pl-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">2. Upload or Record Audio</h3>
+                    <p className="text-slate-700">Choose to upload an audio file (MP3, WAV, M4A, WebM) or record directly in your browser. Files up to 100MB are supported.</p>
+                  </div>
+
+                  <div className="border-l-4 border-emerald-500 pl-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">3. Select Your Preferences</h3>
+                    <p className="text-slate-700">Choose your transcription mode (Fast or Quality) and select the language or use auto-detection.</p>
+                  </div>
+
+                  <div className="border-l-4 border-emerald-500 pl-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">4. Get Your Transcription</h3>
+                    <p className="text-slate-700">Click "Transcribe Now" and wait a few seconds. Your text will appear ready to download or copy.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Features */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Star className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Key Features</h2>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-xl">
+                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-emerald-600" /> File Upload
+                    </h3>
+                    <p className="text-sm text-slate-600">Support for MP3, WAV, M4A, and WebM formats up to 100MB</p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl">
+                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <Mic className="w-4 h-4 text-emerald-600" /> Live Recording
+                    </h3>
+                    <p className="text-sm text-slate-600">Record audio directly in your browser with waveform visualization</p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl">
+                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <Download className="w-4 h-4 text-emerald-600" /> Easy Export
+                    </h3>
+                    <p className="text-sm text-slate-600">Download transcriptions as text files or copy to clipboard</p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl">
+                    <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                      <History className="w-4 h-4 text-emerald-600" /> History
+                    </h3>
+                    <p className="text-sm text-slate-600">Access all your previous transcriptions anytime</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transcription Modes */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Transcription Modes</h2>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="border-2 border-emerald-200 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">⚡</span>
+                      <h3 className="text-lg font-semibold text-slate-900">Fast Mode</h3>
+                    </div>
+                    <p className="text-slate-700 mb-4">Uses Whisper Turbo (Quantized) for ~2x faster processing. Best for quick drafts and clear audio.</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Lightning fast results
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Good accuracy
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Perfect for meetings
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="border-2 border-emerald-200 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🎯</span>
+                      <h3 className="text-lg font-semibold text-slate-900">Quality Mode</h3>
+                    </div>
+                    <p className="text-slate-700 mb-4">Uses Whisper Large v3 for maximum accuracy. Best for professional transcriptions.</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Maximum accuracy
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Better punctuation
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Professional quality
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Supported Languages */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Languages className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Supported Languages</h2>
+                </div>
+
+                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <p className="text-sm text-emerald-800">
+                    <strong>Free Tier:</strong> Auto-detect, English, French, and Arabic
+                  </p>
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Upgrade to access all 30+ languages
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  {Object.entries(LANGUAGES).slice(0, 12).map(([code, name]) => (
+                    <div key={code} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                      <span className="text-emerald-600">•</span>
+                      <span className="text-slate-700">{name}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-slate-500 mt-4">...and 15+ more languages available with paid plans</p>
+              </div>
+
+              {/* Pricing */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Pricing & Plans</h2>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-3 px-4 text-slate-900 font-semibold">Plan</th>
+                        <th className="text-left py-3 px-4 text-slate-900 font-semibold">Price</th>
+                        <th className="text-left py-3 px-4 text-slate-900 font-semibold">Minutes</th>
+                        <th className="text-left py-3 px-4 text-slate-900 font-semibold">Features</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-slate-100">
+                        <td className="py-3 px-4 font-medium text-slate-900">Free</td>
+                        <td className="py-3 px-4 text-slate-700">$0</td>
+                        <td className="py-3 px-4 text-slate-700">15/day</td>
+                        <td className="py-3 px-4 text-slate-600 text-sm">4 languages, both modes</td>
+                      </tr>
+                      <tr className="border-b border-slate-100">
+                        <td className="py-3 px-4 font-medium text-slate-900">Starter</td>
+                        <td className="py-3 px-4 text-slate-700">$9/mo</td>
+                        <td className="py-3 px-4 text-slate-700">300/month</td>
+                        <td className="py-3 px-4 text-slate-600 text-sm">All languages, API access</td>
+                      </tr>
+                      <tr className="border-b border-slate-100">
+                        <td className="py-3 px-4 font-medium text-slate-900">Pro</td>
+                        <td className="py-3 px-4 text-slate-700">$29/mo</td>
+                        <td className="py-3 px-4 text-slate-700">1,000/month</td>
+                        <td className="py-3 px-4 text-slate-600 text-sm">Priority support, speaker detection</td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 px-4 font-medium text-slate-900">Enterprise</td>
+                        <td className="py-3 px-4 text-slate-700">$99/mo</td>
+                        <td className="py-3 px-4 text-slate-700">10,000/month</td>
+                        <td className="py-3 px-4 text-slate-600 text-sm">Custom solutions, dedicated support</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* FAQ */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Frequently Asked Questions</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="border-b border-slate-200 pb-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">What audio formats are supported?</h3>
+                    <p className="text-slate-700">We support MP3, WAV, M4A, and WebM formats with a maximum file size of 100MB.</p>
+                  </div>
+
+                  <div className="border-b border-slate-200 pb-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">How accurate are the transcriptions?</h3>
+                    <p className="text-slate-700">Our Quality Mode uses Whisper Large v3, achieving industry-leading accuracy. Fast Mode provides good accuracy at 2x the speed.</p>
+                  </div>
+
+                  <div className="border-b border-slate-200 pb-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">Can I try before subscribing?</h3>
+                    <p className="text-slate-700">Yes! The free tier includes 15 minutes per day with 4 languages. You can also try as a guest with 3 free transcriptions.</p>
+                  </div>
+
+                  <div className="border-b border-slate-200 pb-4">
+                    <h3 className="font-semibold text-slate-900 mb-2">How do I cancel my subscription?</h3>
+                    <p className="text-slate-700">You can cancel anytime from your Billing page. No questions asked, and you'll retain access until the end of your billing period.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-slate-900 mb-2">Is my data secure?</h3>
+                    <p className="text-slate-700">Yes! All audio files and transcriptions are encrypted and stored securely. We never share your data with third parties.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Need More Help */}
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-center text-white">
+                <h2 className="text-2xl font-bold mb-4">Still Have Questions?</h2>
+                <p className="text-slate-300 mb-6">Our support team is here to help</p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={() => setCurrentPage('contact')}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-3 rounded-full font-semibold hover:from-emerald-600 hover:to-teal-600"
+                  >
+                    Contact Support
+                  </button>
+                  <button
+                    onClick={() => { setShowAuthModal(true); setAuthMode('signup'); }}
+                    className="bg-white text-slate-900 px-8 py-3 rounded-full font-semibold hover:bg-slate-100"
+                  >
+                    Start Free Trial
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
@@ -1698,6 +2011,7 @@ export default function AudioTranscriptionSaaS() {
         <>
           {currentPage === 'home' && <HomePage />}
           {currentPage === 'pricing' && <PricingPage />}
+          {currentPage === 'docs' && <DocumentationPage />}
           {currentPage === 'about' && <AboutPage />}
           {currentPage === 'contact' && <ContactPage />}
         </>
