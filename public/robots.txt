@@ -1,5 +1,5 @@
 # Robots.txt for Voxify - AI Audio Transcription
-# https://audio-transcribe-chi.vercel.app/
+# https://ai-need-tools.online/
 
 User-agent: *
 Allow: /
@@ -20,7 +20,7 @@ Disallow: /*.json$
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://audio-transcribe-chi.vercel.app/sitemap.xml
+Sitemap: https://ai-need-tools.online/sitemap.xml
 
 # Google-specific
 User-agent: Googlebot

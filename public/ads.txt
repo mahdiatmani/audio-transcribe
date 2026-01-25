@@ -1,21 +1,8 @@
 # ads.txt file for Voxify - AI Audio Transcription
-# https://audio-transcribe-chi.vercel.app/
+# https://ai-need-tools.online/
 # Last updated: 2026-01-25
 #
-# IMPORTANT: Replace pub-XXXXXXXXXXXXXXXX with your actual Google AdSense Publisher ID
-# You can find your Publisher ID in your AdSense account under Account > Account information
-#
 # Format: <domain>, <publisher-id>, <relationship>, <certification-authority-id>
-#
-# AdSense 2026 Requirements:
-# - This file must be accessible at https://your-domain.com/ads.txt
-# - Publisher ID must match your AdSense account exactly
-# - File must be UTF-8 encoded
-# - Must include Google's TAG-ID (f08c47fec0942fa0)
 
 # Google AdSense - Direct relationship
-# Replace pub-XXXXXXXXXXXXXXXX with your actual publisher ID
-google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
-
-# Google AdX (if applicable)
-# google.com, pub-XXXXXXXXXXXXXXXX, RESELLER, f08c47fec0942fa0
+google.com, pub-2522729063989683, DIRECT, f08c47fec0942fa0
