@@ -1,6 +1,7 @@
 {
   "short_name": "Voxify",
   "name": "Voxify - AI Audio Transcription",
+  "description": "Professional AI-powered audio transcription. Transform audio into perfect text in seconds with support for 30+ languages.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,18 +9,47 @@
       "type": "image/x-icon"
     },
     {
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "theme_color": "#10b981",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "categories": ["productivity", "utilities", "business"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "New Transcription",
+      "short_name": "Transcribe",
+      "description": "Start a new audio transcription",
+      "url": "/dashboard",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Documentation",
+      "short_name": "Docs",
+      "description": "View documentation and guides",
+      "url": "/docs",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    }
+  ]
 }

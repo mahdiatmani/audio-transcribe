@@ -1,6 +1,51 @@
-# https://www.robotstxt.org/robotstxt.html
+# Robots.txt for Voxify - AI Audio Transcription
+# https://audio-transcribe-chi.vercel.app/
+
 User-agent: *
 Allow: /
+Allow: /about
+Allow: /pricing
+Allow: /contact
+Allow: /docs
+Allow: /privacypolicy
+Allow: /termsandconditions
+Allow: /disclaimer
 
-# Sitemap (uncomment and update with your actual sitemap URL)
-# Sitemap: https://your-domain.com/sitemap.xml
+# Disallow private/authenticated areas
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /*.json$
+
+# Crawl delay for polite crawling
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://audio-transcribe-chi.vercel.app/sitemap.xml
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Google AdSense bot
+User-agent: Mediapartners-Google
+Allow: /
+
+# Google Ads bot
+User-agent: AdsBot-Google
+Allow: /
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
