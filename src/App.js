@@ -205,11 +205,19 @@ export default function App() {
 
   // Handle URL-based routing (clean URLs)
   const navigate = (path) => {
+    // Clear any hash and navigate to clean URL
     window.history.pushState({}, '', path);
     handleRouteChange();
   };
 
   const handleRouteChange = () => {
+    // Handle legacy hash URLs - redirect to clean URLs
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#/')) {
+      const cleanPath = hash.replace('#', '');
+      window.history.replaceState({}, '', cleanPath);
+    }
+
     const path = window.location.pathname;
 
     if (path.startsWith('/blog/')) {
@@ -839,7 +847,9 @@ export default function App() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid md:grid-cols-4 gap-8 mb-8">
           <div>
-            <div className="flex items-center gap-3 mb-4"><Logo size={32} /><span className="text-lg font-bold text-white">AI Need Tools</span></div>
+            <a href="/" onClick={(e) => handleLinkClick(e, '/')} className="flex items-center gap-3 mb-4 cursor-pointer group">
+              <Logo size={32} /><span className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">AI Need Tools</span>
+            </a>
             <p className="text-gray-400 text-sm mb-4">Your hub for AI-powered tools and solutions.</p>
             <div className="flex gap-3">
               {[
