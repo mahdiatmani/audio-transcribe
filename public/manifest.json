@@ -1,6 +1,7 @@
 {
   "short_name": "AI Need Tools",
   "name": "AI Need Tools - Your Hub for AI-Powered Solutions",
+  "description": "Discover powerful AI-powered tools for transcription, content creation, automation and more.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,16 +11,33 @@
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "theme_color": "#0a0a0f",
-  "background_color": "#0a0a0f"
+  "background_color": "#0a0a0f",
+  "categories": ["productivity", "utilities", "business"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Voxify Transcription",
+      "short_name": "Voxify",
+      "description": "AI Audio Transcription Tool",
+      "url": "/voxify",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    }
+  ]
 }
