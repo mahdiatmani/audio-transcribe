@@ -1,0 +1,6 @@
+# ads.txt file for AI Need Tools
+# https://ai-need-tools.online/
+# Last updated: 2026-01-25
+
+# Google AdSense - Direct relationship
+google.com, pub-2522729063989683, DIRECT, f08c47fec0942fa0

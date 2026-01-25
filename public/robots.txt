@@ -1,6 +1,31 @@
-# https://www.robotstxt.org/robotstxt.html
+# Robots.txt for AI Need Tools
+# https://ai-need-tools.online/
+
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /*.json$
 
-# Sitemap
+# Crawl delay for polite crawling
+Crawl-delay: 1
+
+# Sitemap location
 Sitemap: https://ai-need-tools.online/sitemap.xml
+
+# Google-specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Google AdSense bot
+User-agent: Mediapartners-Google
+Allow: /
+
+# Google Ads bot
+User-agent: AdsBot-Google
+Allow: /
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
