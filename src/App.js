@@ -203,69 +203,79 @@ export default function App() {
     }
   };
 
-  // Handle URL-based routing
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      
-      if (hash.startsWith('#/blog/')) {
-        const slug = hash.replace('#/blog/', '');
-        // If posts are loaded, find the post. If not, we might be waiting for fetch.
-        // For simplicity, we rely on blogPosts being updated.
-        const post = blogPosts.find(p => p.slug === slug);
-        if (post) {
-          setSelectedPost(post);
-          setCurrentPage('blog');
-          updateMetaTags(
-            `${post.title} - ${SITE_CONFIG.name}`,
-            post.excerpt,
-            post.image,
-            `https://${SITE_CONFIG.domain}/#/blog/${post.slug}`
-          );
-          window.scrollTo(0, 0);
-        }
-      } else if (hash === '#/blog') {
+  // Handle URL-based routing (clean URLs)
+  const navigate = (path) => {
+    window.history.pushState({}, '', path);
+    handleRouteChange();
+  };
+
+  const handleRouteChange = () => {
+    const path = window.location.pathname;
+
+    if (path.startsWith('/blog/')) {
+      const slug = path.replace('/blog/', '');
+      const post = blogPosts.find(p => p.slug === slug);
+      if (post) {
+        setSelectedPost(post);
         setCurrentPage('blog');
-        setSelectedPost(null);
-        updateMetaTags(`Blog - ${SITE_CONFIG.name}`, 'Read the latest articles.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/blog`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/tools') {
-        setCurrentPage('tools');
-        setSelectedPost(null);
-        updateMetaTags(`AI Tools - ${SITE_CONFIG.name}`, 'Discover AI tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/tools`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/about') {
-        setCurrentPage('about');
-        setSelectedPost(null);
-        updateMetaTags(`About - ${SITE_CONFIG.name}`, 'About AI Need Tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/about`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/privacy') {
-        setCurrentPage('privacy');
-        setSelectedPost(null);
-        updateMetaTags(`Privacy Policy - ${SITE_CONFIG.name}`, 'Our privacy policy and data practices.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/privacy`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/terms') {
-        setCurrentPage('terms');
-        setSelectedPost(null);
-        updateMetaTags(`Terms of Service - ${SITE_CONFIG.name}`, 'Terms and conditions for using our services.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/terms`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/contact') {
-        setCurrentPage('contact');
-        setSelectedPost(null);
-        updateMetaTags(`Contact Us - ${SITE_CONFIG.name}`, 'Get in touch with us.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/contact`);
-        window.scrollTo(0, 0);
-      } else if (hash === '#/' || hash === '') {
-        setCurrentPage('home');
-        setSelectedPost(null);
-        updateMetaTags(`${SITE_CONFIG.name} - ${SITE_CONFIG.tagline}`, SITE_CONFIG.description, `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/`);
+        updateMetaTags(
+          `${post.title} - ${SITE_CONFIG.name}`,
+          post.excerpt,
+          post.image,
+          `https://${SITE_CONFIG.domain}/blog/${post.slug}`
+        );
         window.scrollTo(0, 0);
       }
-    };
+    } else if (path === '/blog') {
+      setCurrentPage('blog');
+      setSelectedPost(null);
+      updateMetaTags(`Blog - ${SITE_CONFIG.name}`, 'Read the latest articles.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/blog`);
+      window.scrollTo(0, 0);
+    } else if (path === '/tools') {
+      setCurrentPage('tools');
+      setSelectedPost(null);
+      updateMetaTags(`AI Tools - ${SITE_CONFIG.name}`, 'Discover AI tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/tools`);
+      window.scrollTo(0, 0);
+    } else if (path === '/about') {
+      setCurrentPage('about');
+      setSelectedPost(null);
+      updateMetaTags(`About - ${SITE_CONFIG.name}`, 'About AI Need Tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/about`);
+      window.scrollTo(0, 0);
+    } else if (path === '/privacy') {
+      setCurrentPage('privacy');
+      setSelectedPost(null);
+      updateMetaTags(`Privacy Policy - ${SITE_CONFIG.name}`, 'Our privacy policy and data practices.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/privacy`);
+      window.scrollTo(0, 0);
+    } else if (path === '/terms') {
+      setCurrentPage('terms');
+      setSelectedPost(null);
+      updateMetaTags(`Terms of Service - ${SITE_CONFIG.name}`, 'Terms and conditions for using our services.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/terms`);
+      window.scrollTo(0, 0);
+    } else if (path === '/contact') {
+      setCurrentPage('contact');
+      setSelectedPost(null);
+      updateMetaTags(`Contact Us - ${SITE_CONFIG.name}`, 'Get in touch with us.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/contact`);
+      window.scrollTo(0, 0);
+    } else {
+      setCurrentPage('home');
+      setSelectedPost(null);
+      updateMetaTags(`${SITE_CONFIG.name} - ${SITE_CONFIG.tagline}`, SITE_CONFIG.description, `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/`);
+      window.scrollTo(0, 0);
+    }
+  };
 
-    handleHashChange(); // Run on mount/update
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+  useEffect(() => {
+    handleRouteChange(); // Run on mount
+    window.addEventListener('popstate', handleRouteChange);
+    return () => window.removeEventListener('popstate', handleRouteChange);
   }, [blogPosts]);
+
+  // Handle internal link clicks
+  const handleLinkClick = (e, path) => {
+    e.preventDefault();
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
 
   const handleSubscribe = (e) => {
     e.preventDefault();
@@ -280,15 +290,15 @@ export default function App() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-900/80 backdrop-blur-xl border-b border-dark-700/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <a href="#/" className="flex items-center gap-3 cursor-pointer group" onClick={onNavClick}>
+          <a href="/" onClick={(e) => handleLinkClick(e, '/')} className="flex items-center gap-3 cursor-pointer group">
             <Logo size={36} />
             <span className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">AI Need Tools</span>
           </a>
           <div className="hidden md:flex items-center gap-8">
-            <a href="#/" className={`text-sm font-medium transition-colors ${currentPage === 'home' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Home</a>
-            <a href="#/tools" className={`text-sm font-medium transition-colors ${currentPage === 'tools' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>AI Tools</a>
-            <a href="#/blog" className={`text-sm font-medium transition-colors ${currentPage === 'blog' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Blog</a>
-            <a href="#/about" className={`text-sm font-medium transition-colors ${currentPage === 'about' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>About</a>
+            <a href="/" onClick={(e) => handleLinkClick(e, '/')} className={`text-sm font-medium transition-colors cursor-pointer ${currentPage === 'home' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Home</a>
+            <a href="/tools" onClick={(e) => handleLinkClick(e, '/tools')} className={`text-sm font-medium transition-colors cursor-pointer ${currentPage === 'tools' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>AI Tools</a>
+            <a href="/blog" onClick={(e) => handleLinkClick(e, '/blog')} className={`text-sm font-medium transition-colors cursor-pointer ${currentPage === 'blog' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>Blog</a>
+            <a href="/about" onClick={(e) => handleLinkClick(e, '/about')} className={`text-sm font-medium transition-colors cursor-pointer ${currentPage === 'about' ? 'text-cyan-400' : 'text-gray-400 hover:text-white'}`}>About</a>
           </div>
           <div className="hidden md:block">
             <a href="https://voxify.ai-need-tools.online" target="_blank" rel="noopener noreferrer"
@@ -303,10 +313,10 @@ export default function App() {
       </div>
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-t border-gray-800 p-4 space-y-4">
-          <a href="#/" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Home</a>
-          <a href="#/tools" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">AI Tools</a>
-          <a href="#/blog" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Blog</a>
-          <a href="#/about" onClick={onNavClick} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">About</a>
+          <a href="/" onClick={(e) => handleLinkClick(e, '/')} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Home</a>
+          <a href="/tools" onClick={(e) => handleLinkClick(e, '/tools')} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">AI Tools</a>
+          <a href="/blog" onClick={(e) => handleLinkClick(e, '/blog')} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">Blog</a>
+          <a href="/about" onClick={(e) => handleLinkClick(e, '/about')} className="block w-full text-left py-2 text-gray-300 hover:text-cyan-400">About</a>
           <a href="https://voxify.ai-need-tools.online" className="block w-full text-center py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl">Try Voxify Free</a>
         </div>
       )}
@@ -337,8 +347,8 @@ export default function App() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a href="#/tools"
-            className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-full hover:from-cyan-400 hover:to-blue-400 transition-all flex items-center justify-center gap-2">
+          <a href="/tools" onClick={(e) => handleLinkClick(e, '/tools')}
+            className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-full hover:from-cyan-400 hover:to-blue-400 transition-all flex items-center justify-center gap-2 cursor-pointer">
             Explore AI Tools <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </a>
           <a href="https://voxify.ai-need-tools.online" target="_blank" rel="noopener noreferrer"
@@ -415,7 +425,7 @@ export default function App() {
         </div>
         {!showAll && (
           <div className="text-center mt-10">
-            <a href="#/tools" className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+            <a href="/tools" onClick={(e) => handleLinkClick(e, '/tools')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2 cursor-pointer">
               View All Tools <ArrowRight className="w-4 h-4" />
             </a>
           </div>
@@ -427,7 +437,7 @@ export default function App() {
   // Blog Card - NOW WITH REAL LINKS
   const BlogCard = ({ post, showAd }) => (
     <>
-      <a href={`#/blog/${post.slug}`} className="block group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden hover:translate-y-[-4px] transition-all">
+      <a href={`/blog/${post.slug}`} onClick={(e) => handleLinkClick(e, `/blog/${post.slug}`)} className="block group bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden hover:translate-y-[-4px] transition-all cursor-pointer">
         <div className="relative h-48 overflow-hidden">
           <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
@@ -456,7 +466,7 @@ export default function App() {
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-8">
-            <a href="#/blog" className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8 inline-block">
+            <a href="/blog" onClick={(e) => handleLinkClick(e, '/blog')} className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 mb-8 inline-block cursor-pointer">
               <ChevronRight className="w-4 h-4 rotate-180" /> Back to Blog
             </a>
             
@@ -519,9 +529,10 @@ export default function App() {
                 <h3 className="text-lg font-bold text-white mb-4">Popular Posts</h3>
                 <div className="space-y-4">
                   {publishedPosts.slice(0, 3).map((popularPost) => (
-                    <a key={popularPost.id} 
-                      href={`#/blog/${popularPost.slug}`}
-                      className="flex gap-3 group">
+                    <a key={popularPost.id}
+                      href={`/blog/${popularPost.slug}`}
+                      onClick={(e) => handleLinkClick(e, `/blog/${popularPost.slug}`)}
+                      className="flex gap-3 group cursor-pointer">
                       <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden">
                         <img src={popularPost.image} alt={popularPost.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                       </div>
@@ -585,7 +596,7 @@ export default function App() {
             </div>
             {!showAll && publishedPosts.length > 3 && (
               <div className="text-center mt-10">
-                <a href="#/blog" className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2">
+                <a href="/blog" onClick={(e) => handleLinkClick(e, '/blog')} className="px-6 py-3 bg-gray-800 border border-gray-700 text-white rounded-full hover:bg-gray-700 inline-flex items-center gap-2 cursor-pointer">
                   Read More <ArrowRight className="w-4 h-4" />
                 </a>
               </div>
@@ -856,16 +867,16 @@ export default function App() {
           <div>
             <h4 className="text-white font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#/about" className="text-gray-400 hover:text-cyan-400">About</a></li>
-              <li><a href="#/blog" className="text-gray-400 hover:text-cyan-400">Blog</a></li>
-              <li><a href="#/contact" className="text-gray-400 hover:text-cyan-400">Contact</a></li>
+              <li><a href="/about" onClick={(e) => handleLinkClick(e, '/about')} className="text-gray-400 hover:text-cyan-400 cursor-pointer">About</a></li>
+              <li><a href="/blog" onClick={(e) => handleLinkClick(e, '/blog')} className="text-gray-400 hover:text-cyan-400 cursor-pointer">Blog</a></li>
+              <li><a href="/contact" onClick={(e) => handleLinkClick(e, '/contact')} className="text-gray-400 hover:text-cyan-400 cursor-pointer">Contact</a></li>
             </ul>
           </div>
           <div>
             <h4 className="text-white font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#/privacy" className="text-gray-400 hover:text-cyan-400">Privacy Policy</a></li>
-              <li><a href="#/terms" className="text-gray-400 hover:text-cyan-400">Terms of Service</a></li>
+              <li><a href="/privacy" onClick={(e) => handleLinkClick(e, '/privacy')} className="text-gray-400 hover:text-cyan-400 cursor-pointer">Privacy Policy</a></li>
+              <li><a href="/terms" onClick={(e) => handleLinkClick(e, '/terms')} className="text-gray-400 hover:text-cyan-400 cursor-pointer">Terms of Service</a></li>
             </ul>
           </div>
         </div>
