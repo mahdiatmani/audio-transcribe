@@ -667,8 +667,13 @@ export default function App() {
             <div className="flex items-center gap-3 mb-4"><Logo size={32} /><span className="text-lg font-bold text-white">AI Need Tools</span></div>
             <p className="text-gray-400 text-sm mb-4">Your hub for AI-powered tools and solutions.</p>
             <div className="flex gap-3">
-              {[Twitter, Github, Linkedin, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-gray-700">
+              {[
+                { Icon: Twitter, url: "https://twitter.com/aineedtools" },
+                { Icon: Github, url: "https://github.com/mahdiatmani" },
+                { Icon: Linkedin, url: "https://linkedin.com/company/aineedtools" },
+                { Icon: Youtube, url: "https://youtube.com/@aineedtools" }
+              ].map(({ Icon, url }, i) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-gray-700">
                   <Icon className="w-4 h-4" />
                 </a>
               ))}
@@ -693,8 +698,8 @@ export default function App() {
           <div>
             <h4 className="text-white font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="text-gray-400 hover:text-cyan-400">Privacy Policy</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-cyan-400">Terms of Service</a></li>
+              <li><a href="/privacy" className="text-gray-400 hover:text-cyan-400">Privacy Policy</a></li>
+              <li><a href="/terms" className="text-gray-400 hover:text-cyan-400">Terms of Service</a></li>
             </ul>
           </div>
         </div>
