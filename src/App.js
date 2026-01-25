@@ -239,6 +239,21 @@ export default function App() {
         setSelectedPost(null);
         updateMetaTags(`About - ${SITE_CONFIG.name}`, 'About AI Need Tools.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/about`);
         window.scrollTo(0, 0);
+      } else if (hash === '#/privacy') {
+        setCurrentPage('privacy');
+        setSelectedPost(null);
+        updateMetaTags(`Privacy Policy - ${SITE_CONFIG.name}`, 'Our privacy policy and data practices.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/privacy`);
+        window.scrollTo(0, 0);
+      } else if (hash === '#/terms') {
+        setCurrentPage('terms');
+        setSelectedPost(null);
+        updateMetaTags(`Terms of Service - ${SITE_CONFIG.name}`, 'Terms and conditions for using our services.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/terms`);
+        window.scrollTo(0, 0);
+      } else if (hash === '#/contact') {
+        setCurrentPage('contact');
+        setSelectedPost(null);
+        updateMetaTags(`Contact Us - ${SITE_CONFIG.name}`, 'Get in touch with us.', `https://${SITE_CONFIG.domain}/og-image.png`, `https://${SITE_CONFIG.domain}/#/contact`);
+        window.scrollTo(0, 0);
       } else if (hash === '#/' || hash === '') {
         setCurrentPage('home');
         setSelectedPost(null);
@@ -658,6 +673,157 @@ export default function App() {
     </div>
   );
 
+  // Privacy Policy Page
+  const PrivacyPage = () => (
+    <div className="min-h-screen pt-24">
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <span className="text-cyan-400 text-sm font-semibold uppercase tracking-wider">Legal</span>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mt-2 mb-4">Privacy Policy</h1>
+          <p className="text-gray-400">Last updated: January 25, 2026</p>
+        </div>
+
+        <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8 space-y-8">
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">1. Information We Collect</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We collect information you provide directly to us, such as when you create an account, use our services, or contact us for support. This may include your name, email address, and usage data.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">2. How We Use Your Information</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We use the information we collect to provide, maintain, and improve our services, process transactions, send you technical notices, and respond to your comments and questions.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">3. Cookies and Tracking</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We use cookies and similar tracking technologies to track activity on our website and hold certain information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">4. Advertising</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We use Google AdSense to display advertisements. Google may use cookies to serve ads based on your prior visits to our website. You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Google Ads Settings</a>.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">5. Data Security</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We implement appropriate security measures to protect your personal information. However, no method of transmission over the Internet is 100% secure.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">6. Your Rights</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">You have the right to access, update, or delete your personal information. If you are a resident of the European Economic Area (EEA), you have additional rights under GDPR.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">7. Contact Us</h2>
+            <p className="text-gray-300 leading-relaxed">If you have any questions about this Privacy Policy, please contact us at <a href="mailto:support@ai-need-tools.online" className="text-cyan-400 hover:underline">support@ai-need-tools.online</a>.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Terms of Service Page
+  const TermsPage = () => (
+    <div className="min-h-screen pt-24">
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <span className="text-cyan-400 text-sm font-semibold uppercase tracking-wider">Legal</span>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mt-2 mb-4">Terms of Service</h1>
+          <p className="text-gray-400">Last updated: January 25, 2026</p>
+        </div>
+
+        <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8 space-y-8">
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">1. Acceptance of Terms</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">By accessing and using AI Need Tools, you accept and agree to be bound by the terms and provisions of this agreement.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">2. Use of Services</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">You agree to use our services only for lawful purposes and in accordance with these Terms. You are responsible for all activity that occurs under your account.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">3. Intellectual Property</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">The service and its original content, features, and functionality are owned by AI Need Tools and are protected by international copyright, trademark, and other intellectual property laws.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">4. User Content</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">You retain ownership of any content you submit to our services. By submitting content, you grant us a license to use, modify, and display that content in connection with our services.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">5. Limitation of Liability</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">AI Need Tools shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">6. Changes to Terms</h2>
+            <p className="text-gray-300 leading-relaxed mb-4">We reserve the right to modify or replace these Terms at any time. We will provide notice of any changes by posting the new Terms on this page.</p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">7. Contact Us</h2>
+            <p className="text-gray-300 leading-relaxed">If you have any questions about these Terms, please contact us at <a href="mailto:support@ai-need-tools.online" className="text-cyan-400 hover:underline">support@ai-need-tools.online</a>.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Contact Page
+  const ContactPage = () => (
+    <div className="min-h-screen pt-24">
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <span className="text-cyan-400 text-sm font-semibold uppercase tracking-wider">Get in Touch</span>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mt-2 mb-4">Contact Us</h1>
+          <p className="text-gray-300 text-lg">Have questions? We'd love to hear from you.</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Send us a message</h2>
+            <form className="space-y-4">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Name</label>
+                <input type="text" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400" placeholder="Your name" />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Email</label>
+                <input type="email" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400" placeholder="your@email.com" />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">Message</label>
+                <textarea rows="4" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400" placeholder="Your message..."></textarea>
+              </div>
+              <button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:opacity-90 transition-opacity">Send Message</button>
+            </form>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8">
+              <Mail className="w-8 h-8 text-cyan-400 mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Email Us</h3>
+              <p className="text-gray-300 mb-2">For general inquiries:</p>
+              <a href="mailto:contact@ai-need-tools.online" className="text-cyan-400 hover:underline">contact@ai-need-tools.online</a>
+              <p className="text-gray-300 mt-4 mb-2">For support:</p>
+              <a href="mailto:support@ai-need-tools.online" className="text-cyan-400 hover:underline">support@ai-need-tools.online</a>
+            </div>
+
+            <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-8">
+              <Bot className="w-8 h-8 text-purple-400 mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Quick Support</h3>
+              <p className="text-gray-300">We typically respond within 24 hours. For urgent matters, please include "URGENT" in your subject line.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Footer
   const Footer = () => (
     <footer className="bg-gray-900 border-t border-gray-800 py-12">
@@ -692,14 +858,14 @@ export default function App() {
             <ul className="space-y-2 text-sm">
               <li><a href="#/about" className="text-gray-400 hover:text-cyan-400">About</a></li>
               <li><a href="#/blog" className="text-gray-400 hover:text-cyan-400">Blog</a></li>
-              <li><a href="mailto:contact@ai-need-tools.online" className="text-gray-400 hover:text-cyan-400">Contact</a></li>
+              <li><a href="#/contact" className="text-gray-400 hover:text-cyan-400">Contact</a></li>
             </ul>
           </div>
           <div>
             <h4 className="text-white font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="/privacy" className="text-gray-400 hover:text-cyan-400">Privacy Policy</a></li>
-              <li><a href="/terms" className="text-gray-400 hover:text-cyan-400">Terms of Service</a></li>
+              <li><a href="#/privacy" className="text-gray-400 hover:text-cyan-400">Privacy Policy</a></li>
+              <li><a href="#/terms" className="text-gray-400 hover:text-cyan-400">Terms of Service</a></li>
             </ul>
           </div>
         </div>
@@ -774,6 +940,9 @@ export default function App() {
       {currentPage === 'tools' && <ToolsPage />}
       {currentPage === 'blog' && <BlogPage />}
       {currentPage === 'about' && <AboutPage />}
+      {currentPage === 'privacy' && <PrivacyPage />}
+      {currentPage === 'terms' && <TermsPage />}
+      {currentPage === 'contact' && <ContactPage />}
       <Footer />
     </div>
   );
