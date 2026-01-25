@@ -44,7 +44,7 @@ const renderOptions = {
       const { slug } = node.data.target.fields || {};
       const text = node.content[0].value;
       if (!slug) return `<span>${text}</span>`;
-      return `<a href="#/blog/${slug}" class="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">${text}</a>`;
+      return `<a href="/blog/${slug}" class="text-cyan-400 hover:text-cyan-300 font-medium transition-colors">${text}</a>`;
     },
     // 3. Render External Links
     [INLINES.HYPERLINK]: (node, next) => {
