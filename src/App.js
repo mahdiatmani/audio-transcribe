@@ -268,6 +268,7 @@ export default function App() {
     handleRouteChange(); // Run on mount
     window.addEventListener('popstate', handleRouteChange);
     return () => window.removeEventListener('popstate', handleRouteChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blogPosts]);
 
   // Handle internal link clicks
@@ -281,9 +282,6 @@ export default function App() {
     e.preventDefault();
     if (email) { setSubscribed(true); setEmail(''); setTimeout(() => setSubscribed(false), 3000); }
   };
-
-  // Close mobile menu when navigating
-  const onNavClick = () => setMobileMenuOpen(false);
 
   // Navigation
   const Navigation = () => (
